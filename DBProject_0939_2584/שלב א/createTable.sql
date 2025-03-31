@@ -24,7 +24,7 @@ CREATE TABLE hourly
 (
   salaryPH NUMERIC(6,2) NOT NULL,
   bonus NUMERIC(10,2) NOT NULL,
-  overTimeRate VARCHAR(5,2) NOT NULL,
+  overTimeRate NUMERIC(5,2) NOT NULL,
   pId INT NOT NULL,
   PRIMARY KEY (pId),
   FOREIGN KEY (pId) REFERENCES worker(pId)
