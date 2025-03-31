@@ -2,7 +2,7 @@ DROP TABLE shift;
 DROP TABLE hourly;
 DROP TABLE monthly;
 DROP TABLE worker;
-DROP TABLE gives_a;
+DROP TABLE serves;
 DROP TABLE timeSpan;
 DROP TABLE services;
 DROP TABLE freelance;
