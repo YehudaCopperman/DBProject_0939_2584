@@ -60,7 +60,7 @@ CREATE TABLE services
   serviceName VARCHAR(20) NOT NULL,
   equipmentRequired VARCHAR(20) NOT NULL,
   PRIMARY KEY (serviceName)
-);}
+);
 
 CREATE TABLE serves
 (
