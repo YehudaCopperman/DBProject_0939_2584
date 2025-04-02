@@ -47,7 +47,7 @@ CREATE TABLE freelance
   FOREIGN KEY (pId) REFERENCES person(pId)
 );
 
-CREATE TABLE timeSpan\
+CREATE TABLE timeSpan
 (
   date DATE NOT NULL,
   startTime VARCHAR(8) NOT NULL,
