@@ -1,9 +1,9 @@
 # DBProject_0939_2584
-##moshe goodman 770120939
+###moshe goodman 770120939
 ## yehuda kuperman
 
 #about the project
-the project of the whole class is to run a gym chain
+#the project of the whole class is to run a gym chain
 this subproject will be managing all the people within the system which would include all the data and access to the data of the people
 the data includes personal data, and for the employees the data includes also salary, seniority, bunuses, contract, and profession/ job.
 
