@@ -14,3 +14,17 @@ for the employee to update work hours and to take shifts
 for the secretaries to manage customers (payment,membership,ordering time/teachers/class), employees (update salaries)
   class availability.........
 for the manager same as secretary maybe also some more functionality.
+
+
+
+person(pId,date of birth, first_name, last_name, email,address, phone)
+  freelance()
+  worker(pId,job_title,contract,hire_date)
+    hourly(Hourly_wage,bonus,overtime_rate)
+    monthly(vacation_days,monthly_wage,benefits_package)
+timestamp(_date_,)
+services()
+
+shift()
+serves()
+  
