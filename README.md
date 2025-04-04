@@ -19,12 +19,13 @@ for the manager same as secretary maybe also some more functionality.
 
 person(**pId**,date of birth, first_name, last_name, email,address, phone)  
 * freelance(**pId**)  
-* worker(**pId**,job_title,contract,hire_date)  
-    * hourly(**pId**,Hourly_wage,bonus,overtime_rate)  
-    * monthly(**pId**,vacation_days,monthly_wage,benefits_package)  
+    * worker(**pId**,job_title,contract,hire_date)  
+        * hourly(**pId**,Hourly_wage,bonus,overtime_rate)  
+        * monthly(**pId**,vacation_days,monthly_wage,benefits_package)  
 * timespan(**date**,checkin_time,checkout_time)  
 * services(**service_name**,equipmant_required)
 
 * shift(**pid**,**date**)  
-* serves(service_nme,pId, service_date_begin,service_date_complete,contract,price)  
+* serves(service_nme,pId, service_date_begin,service_date_complete,contract,price)
+ 
 maybe it is better to combine the shift and timespan into one table (put into consideration whether you want to have workers clock in twice for the same time)  
