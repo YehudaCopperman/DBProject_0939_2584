@@ -29,3 +29,4 @@ person(**pId**,date of birth, first_name, last_name, email,address, phone)
 * serves(service_nme,pId, service_date_begin,service_date_complete,contract,price)
  
 maybe it is better to combine the shift and timespan into one table (put into consideration whether you want to have workers clock in twice for the same time)  
+- [relational schema](relational schema.png)
