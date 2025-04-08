@@ -1,6 +1,6 @@
 # DBProject_0939_2584
-## moshe goodman 770120939  
-## yehuda kuperman
+## Moshe Goodman 770120939  
+## Yehuda Copperman
 
 ### about the project
 
@@ -42,12 +42,13 @@ here are three ways where we added data to the tables
 3. python using pandas library
 <img src="for_md/pandas.png"  />      
 5. using the pgadmin interface (pressing the import button.png)    
-<img src="for_md/pgadmin_import_button"  />      
+<img src="for_md/pgadmin_import_button.png"  />      
 6. using the query tool in pgadmin  
-<img src="for_md/pgadmin_query_tool"  />      
+<img src="for_md/pgadmin_query_tool.png"  />      
 
 
 below is the picture of the backup and restoration    
-!(for_md/backup_screenshot.png)  
-!(for_md/restoration.jpg)  
+  
+<img src="for_md/backup_screenshot.png"  />      
+<img src="for_md/restoration.jpg"  />      
 
