@@ -71,7 +71,7 @@ GROUP BY pid
 ORDER   BY total_hours DESC;
 ```
 **התוצאה** :  
-![alt text](image.png)
+![alt text](for_md/for_second_stage/image.png)
 
 
 ### שאילתא 2
@@ -109,7 +109,7 @@ JOIN    person     p USING (pid)
 ORDER   BY p.pid, c.date;
 ```
 **התוצאה** :  
-![alt text](image-1.png)
+![alt text](for_md/for_second_stage/image-1.png)
 
 ### שאילתא 3
 **תיאור**: השאילתא מראה עבור עובד מסוים את כל המשכורות החודשיות שלו  
@@ -122,7 +122,7 @@ GROUP BY pid,extract(YEAR FROM date ),extract(MONTH FROM date )
 order by extract(year FROM date ),extract(MONTH FROM date )
 ```
 **התוצאה** :  
-![alt text](image-2.png)
+![alt text](for_md/for_second_stage/image-2.png)
 
 
 ### שאילתא 4
@@ -138,7 +138,7 @@ from listoftotals
 where total = (select max(total) from listoftotals)
 ```
 **התוצאה** :  
-![alt text](image-3.png)
+![alt text](for_md/for_second_stage/image-3.png)
 
 ### שאילתא 5
 **תיאור**: הספק הכי זול עבור כל שירות  
@@ -151,7 +151,7 @@ where price =(select min(price)
 				where servicename=b.servicename)
 ```
 **התוצאה** :  
-![alt text](image-4.png)
+![alt text](for_md/for_second_stage/image-4.png)
 
 ### שאילתא 6 
 יכום שעות עבודה לכל תפקיד  –  חודש לדוגמה (מרץ 2022) 
@@ -175,7 +175,7 @@ GROUP   BY job
 ORDER   BY ROUND(SUM(hrs) / COUNT(DISTINCT pid), 2)  DESC;
 ```
 **התוצאה** :  
-![alt text](image-5.png)
+![alt text](for_md/for_second_stage/image-5.png)
 
 
 ### שאילתא 7
@@ -212,9 +212,9 @@ RETURNING m.pid, m.vacationdays;
 ```
 
 **לפני**    
-![alt text](image-6.png)  
+![alt text](for_md/for_second_stage/image-6.png)  
 **אחרי**  
-![alt text](image-12.png)
+![alt text](for_md/for_second_stage/image-12.png)
 
 
 ### שאילתת select 2 
@@ -263,7 +263,7 @@ order by pid
 
 ```  
 **לפני**    
-![alt text](image-10.png)   
+![alt text](for_md/for_second_stage/image-10.png)   
  **אחרי**  
-![alt text](image-11.png)
+![alt text](for_md/for_second_stage/image-11.png)
 
