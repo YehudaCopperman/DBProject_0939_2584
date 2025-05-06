@@ -52,3 +52,218 @@ below is the picture of the backup and restoration
 <img src="for_md/backup_screenshot.png"  />      
 <img src="for_md/restoration.jpg"  />      
 
+
+
+
+# שלב 2
+### שאילתא 1
+**תיאור**: השאילתא מראה את שעות העבודה של כל עובד והתשלום שמקבל בחודש נתון  
+**הקוד** : 
+```
+SELECT firstname,lastname,sum(hours_worked) as total_hours
+FROM person NATURAL JOIN  (
+    SELECT  pid,date,
+            (EXTRACT(EPOCH FROM (clock_out - clock_in))) / 3600 AS hours_worked
+    FROM    shift
+	)as time_worked
+WHERE EXTRACT(MONTH FROM date)  =3 and EXTRACT(year FROM date) =2022
+GROUP BY pid
+ORDER   BY total_hours DESC;
+```
+**התוצאה** :  
+![alt text](image.png)
+
+
+### שאילתא 2
+
+**תיאור**: השאילתא מראה השכר עבור משמרת אחת  
+**הקוד** : 
+```
+WITH shift_durations AS (
+    SELECT  s.pid,
+            s.date,
+            EXTRACT(EPOCH FROM (s.clock_out - s.clock_in)) / 3600 AS hours_worked
+    FROM    shift AS s
+),
+pay_calc AS (
+    SELECT  d.pid,
+            d.date,
+            d.hours_worked,
+            h.salaryph,
+            h.bonus,
+            d.hours_worked * h.salaryph                                AS base_salary,
+            GREATEST(d.hours_worked - 8, 0) * h.salaryph * (h.overtimerate-1) AS extra_payment
+    FROM    shift_durations d
+    JOIN    hourly h USING (pid)
+)
+SELECT  p.pid,
+        p.firstname,
+        p.lastname,
+        c.date,
+		c.salaryph,
+		ROUND(c.hours_worked,2)AS hours_worked,
+        ROUND(c.base_salary, 2)      AS base_salary,
+        ROUND(c.extra_payment, 2)    AS extra_payment_for_bonus
+FROM    pay_calc   c
+JOIN    person     p USING (pid)
+ORDER   BY p.pid, c.date;
+```
+**התוצאה** :  
+![alt text](image-1.png)
+
+### שאילתא 3
+**תיאור**: השאילתא מראה עבור עובד מסוים את כל המשכורות החודשיות שלו  
+**הקוד** : 
+```
+SELECT pid,firstname, lastname,extract(YEAR FROM date )AS year,extract(MONTH FROM date )AS MONTH,SUM((EXTRACT(EPOCH FROM (clock_out - clock_in)) / 3600)*salaryph) as base_salary_month,SUM(GREATEST((EXTRACT(EPOCH FROM (clock_out - clock_in)) / 3600)-8,0)*salaryph*(overtimerate-1)) as extra_payment_for_bonus ,max(bonus)as bonus
+FROM person NATURAL JOIN shift NATURAL JOIN hourly 
+where pid=300
+GROUP BY pid,extract(YEAR FROM date ),extract(MONTH FROM date )
+order by extract(year FROM date ),extract(MONTH FROM date )
+```
+**התוצאה** :  
+![alt text](image-2.png)
+
+
+### שאילתא 4
+**תיאור**: השירותים עבורם הוציאו הכי הרבה כסף
+**הקוד** : 
+```
+with listoftotals as(select servicename , sum(price)as total
+from serves
+
+group by servicename)
+select servicename as most_expensive_service,total 
+from listoftotals
+where total = (select max(total) from listoftotals)
+```
+**התוצאה** :  
+![alt text](image-3.png)
+
+### שאילתא 5
+**תיאור**: הספק הכי זול עבור כל שירות  
+**הקוד** : 
+```
+select pid, firstname , lastname,servicename,price as cheapest_price
+from serves as b natural join person
+where price =(select min(price)
+				from serves
+				where servicename=b.servicename)
+```
+**התוצאה** :  
+![alt text](image-4.png)
+
+### שאילתא 6 
+יכום שעות עבודה לכל תפקיד  –  חודש לדוגמה (מרץ 2022) 
+**תיאור**:   
+**הקוד** : 
+```
+WITH shift_hours AS (
+    SELECT  w.job,
+            s.pid,
+            EXTRACT(EPOCH FROM (s.clock_out - s.clock_in))/3600 AS hrs
+    FROM    shift   s
+    JOIN    worker  w USING (pid)
+    WHERE   extract(MONTH FROM date)  = 5 and extract(Year FROM date ) = 2022
+)
+SELECT  job                                           ,
+        COUNT(DISTINCT pid)                        AS amount_of_workers,
+        ROUND(SUM(hrs), 2)                         AS total_work_time,
+        ROUND(SUM(hrs) / COUNT(DISTINCT pid), 2)   AS ave_hours_per_person
+FROM    shift_hours
+GROUP   BY job
+ORDER   BY ROUND(SUM(hrs) / COUNT(DISTINCT pid), 2)  DESC;
+```
+**התוצאה** :  
+![alt text](image-5.png)
+
+
+### שאילתא 7
+**תיאור**:   
+**הקוד** : 
+```
+
+```
+**התוצאה** :  
+
+
+
+### שאילתא 8
+**תיאור**: השאילתא מראה את שעות העבודה של כל עובד והתשלום שמקבל בחודש נתון  
+**הקוד** : 
+```
+
+```
+**התוצאה** :  
+
+
+## שאילתות select
+
+### שאילתת select 1 
+**תיאור**: נותן עוד יום חופש למי שיש יותר מוותק מסוים  
+**הקוד**: 
+```
+UPDATE monthly AS m
+SET    vacationdays = vacationdays + 1
+FROM   worker  w
+WHERE  m.pid = w.pid
+  AND  w.dateOfEployment <= CURRENT_DATE - INTERVAL '2 years'
+RETURNING m.pid, m.vacationdays;
+```
+
+**לפני**    
+![alt text](image-6.png)  
+**אחרי**  
+![alt text](image-12.png)
+
+
+### שאילתת select 2 
+**תיאור**:   עדכון נתוני שכר  
+**הקוד**: 
+```
+UPDATE hourly
+SET    salaryph = salaryph + 2.50,      
+       bonus     = bonus + 250.00       
+WHERE  pid = 102
+RETURNING pid, salaryph, bonus;
+```
+
+**לפני**    
+**אחרי**  
+
+
+
+
+
+### שאילתת select 3 
+**תיאור**:  מקפיץ את המשכורת של כל מי שעבד בחודש נתון ב5%  (5/2022)  
+**הקוד**: 
+```
+
+UPDATE hourly AS h
+SET    salaryph = ROUND(salaryph * 1.05, 2)          -- keep two decimals
+FROM  (
+        SELECT  pid,max(salaryph),max(date)as wert
+        FROM    shift natural join hourly
+        WHERE   extract(MONTH FROM date)=5 and extract(YEAR FROM date)= 2022
+        GROUP BY pid
+        HAVING  SUM(EXTRACT(EPOCH FROM (clock_out - clock_in)))/3600 > 16
+      ) AS big_month
+WHERE  h.pid = big_month.pid
+RETURNING h.pid, salaryph;       
+```
+**(השאילתא לראות את מה שצריך לפני)**
+```
+select pid,salaryph
+from hourly natural join shift
+WHERE   extract(MONTH FROM date)=5 and extract(YEAR FROM date)= 2022
+GROUP BY pid
+HAVING  SUM(EXTRACT(EPOCH FROM (clock_out - clock_in)))/3600 > 16
+order by pid
+
+```  
+**לפני**    
+![alt text](image-10.png)   
+ **אחרי**  
+![alt text](image-11.png)
+
