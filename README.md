@@ -300,29 +300,69 @@ order by pid
 
 
 
+
 ##  שאילתות delete  
 
 
 ### שאילתת delete 1   
-**תיאור**:      
+**תיאור**:  -מוחק את כל הפרילנסרים שאין להם שום שירות רשום ב-serves        
 **הקוד**:   
+```
+DELETE FROM freelance f
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM serves s
+    WHERE s.pid = f.pid
+      
+);
+```
 
-**לפני**    
+**לפני**  
+![alt text](for_md/for_second_stage/image-34.png)    
 **אחרי**    
+![alt text](for_md/for_second_stage/image-35.png)  
+
+
+
 
 ### שאילתת delete 2  
-**תיאור**:      
+**תיאור**: מוחק עובדים שלא נמצאים בחוזהה חודשי ולא בחוזה שנתי     
 **הקוד**:   
+```
+DELETE FROM worker AS w
+WHERE NOT EXISTS (SELECT 1 FROM hourly    h WHERE h.pid = w.pid)
+  AND NOT EXISTS (SELECT 1 FROM monthly   m WHERE m.pid = w.pid);
+```
 
-**לפני**    
+**לפני**   
+![alt text](for_md/for_second_stage/image-36.png) 
 **אחרי**    
+![alt text](for_md/for_second_stage/image-37.png)   
+
+
 
 ### שאילתת delete 3   
-**תיאור**:      
+**תיאור**:  מעיף כל משמרת שהיתה פחות משעה    
 **הקוד**:   
+```
+DELETE FROM shift
+WHERE EXTRACT(EPOCH FROM (clock_out - clock_in)) / 60 < 60;
 
-**לפני**    
+
+
+```
+**יעזור לראות**  
+```
+select *, EXTRACT(EPOCH FROM (clock_out - clock_in))/60 as minutes 
+from shift order by EXTRACT(EPOCH FROM (clock_out - clock_in));
+
+```
+**לפני**   
+![alt text](for_md/for_second_stage/image-38.png)   
+
 **אחרי**    
+![alt text](for_md/for_second_stage/image-39.png)  
+  
 
 
 
