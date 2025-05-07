@@ -219,7 +219,7 @@ group by pid
 order by proportion_over_the_month desc LIMIT 100
 ```
 **התוצאה** :  
-![alt text](image-33.png)
+![alt text](for_md/for_second_stage/image-33.png)
  
 
 
