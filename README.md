@@ -177,29 +177,55 @@ ORDER   BY ROUND(SUM(hrs) / COUNT(DISTINCT pid), 2)  DESC;
 **התוצאה** :  
 ![alt text](for_md/for_second_stage/image-5.png)
 
-
 ### שאילתא 7
-**תיאור**:   
+**תיאור**: מראה את כמות העובדים מכל משרה מעל 65 (ככה תדע מי יוצא לפנסיה ולפי זה תעסיק עובדים חדשים)  
 **הקוד** : 
 ```
-
+with elderly_workers_per_job as (
+		select job,sum(1) as amount_of_employees
+		from person  join  worker on person.pid = worker.pid
+		left outer join hourly on worker.pid = hourly.pid
+		left outer join monthly on worker.pid = monthly.pid
+		where dateofb < CURRENT_DATE - INTERVAL '65 year'
+		group by job
+),
+select * 
+from elderly_workers_per_job
 ```
 **התוצאה** :  
-
+![alt text](for_md/for_second_stage/image-32.png)  
 
 
 ### שאילתא 8
-**תיאור**: השאילתא מראה את שעות העבודה של כל עובד והתשלום שמקבל בחודש נתון  
+**תיאור**: השאילתא מראה את 10 העובדים עם חוזה שעתי שיש להם הכי הרבה אוברטיים יחסית לשעות עבודה רגילות  
 **הקוד** : 
 ```
+with overtime_percentage as(
+			select pid,date,ROUND(LEAST(EXTRACT(EPOCH FROM (s.clock_out - s.clock_in)) / 3600,8),2)as basic,
+			ROUND(GREATEST(EXTRACT(EPOCH FROM (s.clock_out - s.clock_in)) / 3600-8,0),2)as overtime
+			from hourly h natural join shift s
+			ORDER BY pid
+), our_months_we_care_about as(
+select *,Round(overtime/(basic+overtime),2)as overtime_proportion
+from overtime_percentage
+where extract(year from date)=2023 and extract(month from date)>=2)
 
+
+select pid, sum(basic) as month_basic, 
+			sum(overtime) as month_overtime,
+			ROUND(sum(overtime)*100/sum(basic +overtime),6) as proportion_over_the_month
+from our_months_we_care_about
+group by pid
+order by proportion_over_the_month desc LIMIT 100
 ```
 **התוצאה** :  
+![alt text](image-33.png)
+ 
 
 
-## שאילתות select
+## שאילתות update
 
-### שאילתת select 1 
+### שאילתת update 1 
 **תיאור**: נותן עוד יום חופש למי שיש יותר מוותק מסוים  
 **הקוד**: 
 ```
@@ -217,7 +243,7 @@ RETURNING m.pid, m.vacationdays;
 ![alt text](for_md/for_second_stage/image-12.png)
 
 
-### שאילתת select 2 
+### שאילתת update 2 
 **תיאור**:   עדכון נתוני שכר  
 **הקוד**: 
 ```
@@ -235,7 +261,7 @@ RETURNING pid, salaryph, bonus;
 
 
 
-### שאילתת select 3 
+### שאילתת update 3 
 **תיאור**:  מקפיץ את המשכורת של כל מי שעבד בחודש נתון ב5%  (5/2022)  
 **הקוד**: 
 ```
