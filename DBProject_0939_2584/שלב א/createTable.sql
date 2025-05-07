@@ -32,7 +32,7 @@ CREATE TABLE hourly
 
 CREATE TABLE monthly
 (
-  vecationDays NUMERIC(3,1) NOT NULL,
+  vacationdays NUMERIC(3,1) NOT NULL,
   salaryPM NUMERIC(9,2) NOT NULL,
   benefits_package VARCHAR(500) NOT NULL,
   pId INT NOT NULL,
@@ -47,13 +47,7 @@ CREATE TABLE freelance
   FOREIGN KEY (pId) REFERENCES person(pId)
 );
 
-CREATE TABLE timeSpan
-(
-  date DATE NOT NULL,
-  startTime VARCHAR(8) NOT NULL,
-  finishTime VARCHAR(8) NOT NULL,
-  PRIMARY KEY (date)
-);
+
 
 CREATE TABLE services
 (
@@ -81,5 +75,11 @@ CREATE TABLE shift
   date DATE NOT NULL,
   PRIMARY KEY (pId, date),
   FOREIGN KEY (pId) REFERENCES hourly(pId),
-  FOREIGN KEY (date) REFERENCES timeSpan(date)
-);
+
+
+  clock_in TIME NOT NULL,
+  clock_out TIME NOT NULL
+  );
+
+
+  
