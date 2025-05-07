@@ -226,11 +226,11 @@ SET    salaryph = salaryph + 2.50,
        bonus     = bonus + 250.00       
 WHERE  pid = 102
 RETURNING pid, salaryph, bonus;
-```
-
+```  
 **לפני**    
-**אחרי**  
-
+![alt text](for_md/for_second_stage/image-13.png)  
+**אחרי**    
+![alt text](for_md/for_second_stage/image-14.png)
 
 
 
@@ -260,10 +260,135 @@ WHERE   extract(MONTH FROM date)=5 and extract(YEAR FROM date)= 2022
 GROUP BY pid
 HAVING  SUM(EXTRACT(EPOCH FROM (clock_out - clock_in)))/3600 > 16
 order by pid
+```
 
-```  
+
 **לפני**    
 ![alt text](for_md/for_second_stage/image-10.png)   
  **אחרי**  
 ![alt text](for_md/for_second_stage/image-11.png)
 
+
+
+
+
+
+
+##  שאילתות delete  
+
+
+### שאילתת delete 1   
+**תיאור**:      
+**הקוד**:   
+
+**לפני**    
+**אחרי**    
+
+### שאילתת delete 2  
+**תיאור**:      
+**הקוד**:   
+
+**לפני**    
+**אחרי**    
+
+### שאילתת delete 3   
+**תיאור**:      
+**הקוד**:   
+
+**לפני**    
+**אחרי**    
+
+
+
+
+## אילוצים
+
+### אילוץ 1  
+**תיאור:** מחייב שהמשכורות גדולות מ-0
+  
+**הקוד**  
+```
+ALTER TABLE hourly
+ADD CONSTRAINT chk_hourly_salary_positive
+CHECK (salaryph > 0);
+```
+**כישלון בעקבות האילוץ**  
+![alt text](for_md/for_second_stage/image-15.png)
+
+
+
+### אילוץ 2  
+**תיאור:** מחייב שהכניסה תהיה לפני היציאה
+  
+**הקוד**  
+```
+ALTER TABLE shift
+ADD CONSTRAINT chk_shift_time_order
+CHECK (clock_in < clock_out);
+
+```
+**כישלון בעקבות האילוץ**  
+![alt text](for_md/for_second_stage/image-16.png)
+
+### אילוץ 3
+**תיאור:** מחייב שמשמרת לא תהיה מדווחת על תאריך עתידי  
+
+**הקוד**  
+```
+ALTER TABLE shift
+ADD CONSTRAINT chk_shift_time_order
+CHECK (clock_in < clock_out);
+
+```
+**כישלון בעקבות האילוץ**  
+![alt text](for_md/for_second_stage/image-17.png)
+
+
+
+##  commit and rollback
+
+### ראשון
+**לפני מחיקת כל השירותים לפני 2022-07-10**  
+![alt text](for_md/for_second_stage/image-18.png)  
+
+**אחרי מחיקת כל השירותים לפני 2022-07-10**  
+![alt text](for_md/for_second_stage/image-19.png)  
+
+**אחרי רולבק**  
+![alt text](for_md/for_second_stage/image-20.png)  
+**אחרי הרצת השאילתא שוב קומיט ואז רולבק**  
+![alt text](for_md/for_second_stage/image-21.png)  
+
+
+## שני
+
+
+**לפני הוספת עובד 4000**  
+![alt text](for_md/for_second_stage/image-22.png)  
+
+**אחרי הוספת עובד 4000**  
+![alt text](for_md/for_second_stage/image-23.png)   
+
+**אחרי רולבק**  (חח יש בשורה אח"כ את השאילתא הקודמת שכחתי לשנות ל-insert )  
+![alt text](for_md/for_second_stage/image-24.png)    
+
+**אחרי הרצת השאילתא שוב קומיט ואז רולבק**  
+![alt text](for_md/for_second_stage/image-25.png)  
+
+
+
+### שלישי  
+
+**לפני שקיצרתי את הכתובת**    
+![alt text](for_md/for_second_stage/image-26.png)  
+
+**אחרי שקיצרתי את הכתובת**  
+![alt text](for_md/for_second_stage/image-27.png)  
+
+
+
+**אחרי רולבק**  
+![alt text](for_md/for_second_stage/image-30.png)  
+
+**אחרי הרצת השאילתא שוב קומיט ואז רולבק**  
+![alt text](for_md/for_second_stage/image-31.png)
