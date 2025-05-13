@@ -32,7 +32,7 @@ we created the ERD and relational schema as shown in the pictures below
 
 
 
-<img src="for_md/erd_diagram.png" width="600" height="400" />    
+<img src="for_md/people_erd_diagram.png" width="600" height="400" />    
 <img src="for_md/relational_schema.png"  />    
 
 
