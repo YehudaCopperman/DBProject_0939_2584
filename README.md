@@ -1,29 +1,40 @@
-# DBProject_0939_2584
-## Moshe Goodman 770120939  
-## Yehuda Copperman
+# רשת חדרי כושר  
+מערכת תשלומי עובדים  
 
-### about the project
-
-
-
-the __project__ of the whole class is to run a gym chain  
-this **sub-project** will be managing all the workers within the system which would include all the data and access to the data of the people.  
-the data includes personal data, salary, seniority, bunus, contract, and profession/ job.
+**מגישים:**  
+משה גודמן 770120939  
+יהודה קופרמן 
 
 
 
-**person**(**pId**,date of birth, first_name, last_name, email,address, phone)  
-* **freelance**(**pId**)  
-    * **worker**(**pId**,job_title,contract,hire_date)  
-        * **hourly**(**pId**,Hourly_wage,bonus,overtime_rate)  
-        * **monthly**(**pId**,vacation_days,monthly_wage,benefits_package)  
-* **timespan**(**date**,checkin_time,checkout_time)  
-* **services**(**service_name**,equipmant_required)
-
-* **shift**(**pid**,**date**)  
-* **serves**(service_nme,pId, service_date_begin,service_date_complete,contract,price)
+## תוכן עניינים
 
 
+
+ [שלב א](#שלב-א)   
+> [אודות הפרויקט](#אודות-הפרויקט)     
+[ישויות](#ישויות)       
+[ דיאגרמת ישות יחסים ](#דיאגרמת-ישות-יחסים )      
+[ סכמה רלציונית](#סכמה-רלציונית )      
+
+
+ [שלב ב](#שלב-ב) 
+
+## שלב א
+### אודות-הפרויקט
+במסגרת הפרויקט הכיתתי שמטרתו להפעיל רשת מכוני כושר.  
+ תת‑הפרויקט הנוכחי מוקדש לניהול העובדים במערכת. הוא יכלול ריכוז כל הנתונים הנוגעים אליהם—החל מפרטים אישיים, משכורת, ותק ובונוסים ועד לחוזה ההעסקה ולתפקידם—ולצד זאת יבטיח גישה נוחה ובטוחה למידע.
+
+
+### ישויות  
+* **אנשים** (**מס מזהה**, תאריך לידה, שם פרטי , שם משפחה , כתובת מייל , כתובת, מס טלפון)  
+    * **שכיר** (**מס מזהה**,תפקיד , חוזה , תאריך העסקה)  
+        * **עובד לפי שעה** (**מס מזהה** , שכר שעתי , בונוס חודשי , אוברטיים)  
+            * **משמרת**(**מס מזהה**, תאריך , שעת כניסה , שעת יציאה)
+        * **עובד חדשי** (**מס מזהה** , שכר חודשי , מס ימי חופשה , חבילת הטבות)
+    * **נותן שירות חיצוני**(**מס מזהה**)
+* **שירותים**(**שם השירות**, ציוד נדרש)
+* **מתן שירות** (**מס מזהה** , **שם השירות** , מחיר , חוזה , תאריך תחילת שירות, תאריך סיום)
 
  
 we might wanna add also tax and pension plans to the tables  
@@ -31,12 +42,24 @@ maybe it is better to combine the shift and timespan into one table (put into co
 we created the ERD and relational schema as shown in the pictures below  
 
 
+### דיאגרמת ישות יחסים 
 
-<img src="for_md/people_erd_diagram.png" width="600" height="400" />    
+קישור לקובץ erdplus : 
+ [דיאגרמת ישויות] (DBProject_0939_2584/שלב א/gym_people_erd_diagram.erdplus)
+
+<img src="for_md/people_erd_diagram.png" width="600" height="400" />  
+
+
+### סכמה רלציונית
+קישור לקובץ erdplus :
+[סכמה רלציונית] (DBProject_0939_2584/שלב א/gym_people_relational_schema.erdplus)
+
 <img src="for_md/relational_schema.png"  />    
 
 
-here are three ways where we added data to the tables
+
+
+## here are three ways where we added data to the tables
 1. python copying from shift.csv file using postgres command  
 <img src="for_md/python_postgres.png"  />      
 3. python using pandas library
@@ -55,7 +78,7 @@ below is the picture of the backup and restoration
 
 
 
-# שלב 2
+# שלב ב
 ### שאילתא 1
 **תיאור**: השאילתא מראה את שעות העבודה של כל עובד והתשלום שמקבל בחודש נתון  
 **הקוד** : 
