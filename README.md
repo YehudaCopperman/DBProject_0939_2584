@@ -15,17 +15,17 @@
 > [אודות הפרויקט](#אודות-הפרויקט)     
 [ישויות](#ישויות)       
 [ דיאגרמת ישות יחסים ](#דיאגרמת-ישות-יחסים )      
-[ סכמה רלציונית](#סכמה-רלציונית )
-[קבצי יצירה ואכלוס בסיס הנתונים](#קבצי-יצירה-ואכלוס-בסיס-הנתונים)  
-[הכנסת ערכים לבסיס נתונים](#הכנסה-לבסיס-נתונים)
-[גיבוי ושחזור](#גיבוי-ושחזור)
+[ סכמה רלציונית](#סכמה-רלציונית )  
+[קבצי יצירה ואכלוס בסיס הנתונים](#קבצי-יצירה-ואכלוס-בסיס-הנתונים)    
+[הכנסת ערכים לבסיס נתונים](#הכנסה-לבסיס-נתונים)  
+[גיבוי ושחזור](#גיבוי-ושחזור)  
 
  [שלב ב](#שלב-ב) 
-> [שאילתות SELECT](#שאילתות-SELECT)  
-[שאילתות עדכון (UPDATE)](#שאילתות-UPDATE)  
-[שאילתות מחיקה (DELETE)](#שאילתות-DELETE)  
-[אילוצים (Constraints)](#אילוצים)
-[ commit and rollback] (#commit-and-rollback)  
+> [שאילתות SELECT](#שאילתות-SELECT)    
+[שאילתות עדכון (UPDATE)](#שאילתות-UPDATE)    
+[שאילתות מחיקה (DELETE)](#שאילתות-DELETE)    
+[אילוצים (Constraints)](#אילוצים)  
+[ commit and rollback](#commit-and-rollback)  
 ## שלב א
 ### אודות-הפרויקט
 במסגרת הפרויקט הכיתתי שמטרתו להפעיל רשת מכוני כושר.  
@@ -64,14 +64,20 @@ we created the ERD and relational schema as shown in the pictures below
 <img src="for_md/relational_schema.png"  />    
 
 
-# קבצי יצירת ואכלוס בסיס הנתוני  
-[יצירה CREATE](DBProject_0939_2584/שלב%20א/createTable.sql)
-[מחיקה DROP](DBProject_0939_2584/שלב%20א/dropTable.sql)
-[הכנסת ערכים  INSERT](DBProject_0939_2584/שלב%20א/insertTables.sql)  
-[קריאת הנתונים SELECT] (DBProject_0939_2584/שלב%20א/selectAll.sql) 
+## קבצי יצירה ואכלוס בסיס הנתוני  
+[יצירה CREATE](DBProject_0939_2584/שלב%20א/createTable.sql)  
+[מחיקה DROP](DBProject_0939_2584/שלב%20א/dropTable.sql)  
+[הכנסת ערכים  INSERT](DBProject_0939_2584/שלב%20א/insertTables.sql)    
+[קריאת הנתונים SELECT](DBProject_0939_2584/שלב%20א/selectAll.sql)   
 
-## הכנסה לבסיס נתונים
-
+### הכנסה לבסיס נתונים  
+[אנשים](DBProject_0939_2584/שלב א/pdadmin_import/freelance.csv)    
+[שכיר](DBProject_0939_2584/שלב א/pdadmin_import/worker.csv)    
+[שכיר חודשי](DBProject_0939_2584/שלב א/pdadmin_import/hourly.csv)    
+[שכיר לפי שעה](DBProject_0939_2584/שלב א/pdadmin_import/freelance.csv)    
+[סןג שירות חיצוני](DBProject_0939_2584/שלב א/pdadmin_import/services.csv)    
+[מתן שירות חיצוני](DBProject_0939_2584/שלב א/pdadmin_import/serves.csv)    
+### קבצי הרשומות  
 
 ## here are three ways where we added data to the tables
 1. python copying from shift.csv file using postgres command  
