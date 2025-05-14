@@ -71,12 +71,12 @@ we created the ERD and relational schema as shown in the pictures below
 [קריאת הנתונים SELECT](DBProject_0939_2584/שלב%20א/selectAll.sql)   
 
 ### הכנסה לבסיס נתונים  
-[אנשים](DBProject_0939_2584/שלב א/pdadmin_import/freelance.csv)    
-[שכיר](DBProject_0939_2584/שלב א/pdadmin_import/worker.csv)    
-[שכיר חודשי](DBProject_0939_2584/שלב א/pdadmin_import/hourly.csv)    
-[שכיר לפי שעה](DBProject_0939_2584/שלב א/pdadmin_import/freelance.csv)    
-[סןג שירות חיצוני](DBProject_0939_2584/שלב א/pdadmin_import/services.csv)    
-[מתן שירות חיצוני](DBProject_0939_2584/שלב א/pdadmin_import/serves.csv)    
+[אנשים](DBProject_0939_2584/שלב%20א/pdadmin_import/freelance.csv)    
+[שכיר](DBProject_0939_2584/שלב%20א/pdadmin_import/worker.csv)    
+[שכיר חודשי](DBProject_0939_2584/שלב%20א/pdadmin_import/hourly.csv)    
+[שכיר לפי שעה](DBProject_0939_2584/שלב%20א/pdadmin_import/freelance.csv)    
+[סןג שירות חיצוני](DBProject_0939_2584/שלב%20א/pdadmin_import/services.csv)    
+[מתן שירות חיצוני](DBProject_0939_2584/שלב%20א/pdadmin_import/serves.csv)    
 ### קבצי הרשומות  
 
 ## here are three ways where we added data to the tables
