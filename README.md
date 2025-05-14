@@ -45,14 +45,15 @@ we created the ERD and relational schema as shown in the pictures below
 ### דיאגרמת ישות יחסים 
 
 קישור לקובץ erdplus : 
- [דיאגרמת ישויות] (DBProject_0939_2584/שלב א/gym_people_erd_diagram.erdplus)
+[דיאגרמת ישויות](DBProject_0939_2584/שלב%20א/gym_people_erd_diagram.erdplus)
 
 <img src="for_md/people_erd_diagram.png" width="600" height="400" />  
 
 
 ### סכמה רלציונית
 קישור לקובץ erdplus :
-[סכמה רלציונית] (DBProject_0939_2584/שלב א/gym_people_relational_schema.erdplus)
+ [סכמה רלציונית](DBProject_0939_2584/שלב%20א/gym_people_relational_schema.erdplus)
+
 
 <img src="for_md/relational_schema.png"  />    
 
