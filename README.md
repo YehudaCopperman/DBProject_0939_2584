@@ -19,7 +19,11 @@
 
 
  [שלב ב](#שלב-ב) 
-
+> [שאילתות SELECT](#שאילתות-SELECT)  
+[שאילתות עדכון (UPDATE)](#שאילתות-UPDATE)  
+[שאילתות מחיקה (DELETE)](#שאילתות-DELETE)  
+[אילוצים (Constraints)](#אילוצים)  
+    - [ commit and rollback] (#commit-and-rollback)  
 ## שלב א
 ### אודות-הפרויקט
 במסגרת הפרויקט הכיתתי שמטרתו להפעיל רשת מכוני כושר.  
@@ -80,6 +84,7 @@ below is the picture of the backup and restoration
 
 
 # שלב ב
+## שאילתות SELECT
 ### שאילתא 1
 **תיאור**: השאילתא מראה את שעות העבודה של כל עובד והתשלום שמקבל בחודש נתון  
 **הקוד** : 
@@ -247,7 +252,7 @@ order by proportion_over_the_month desc LIMIT 100
  
 
 
-## שאילתות update
+## שאילתות UPDATE
 
 ### שאילתת update 1 
 **תיאור**: נותן עוד יום חופש למי שיש יותר מוותק מסוים  
@@ -325,7 +330,7 @@ order by pid
 
 
 
-##  שאילתות delete  
+##  שאילתות DELETE  
 
 
 ### שאילתת delete 1   
