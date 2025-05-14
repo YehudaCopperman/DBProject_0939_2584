@@ -15,15 +15,17 @@
 > [אודות הפרויקט](#אודות-הפרויקט)     
 [ישויות](#ישויות)       
 [ דיאגרמת ישות יחסים ](#דיאגרמת-ישות-יחסים )      
-[ סכמה רלציונית](#סכמה-רלציונית )      
-
+[ סכמה רלציונית](#סכמה-רלציונית )
+[קבצי יצירה ואכלוס בסיס הנתונים](#קבצי-יצירה-ואכלוס-בסיס-הנתונים)  
+[הכנסת ערכים לבסיס נתונים](#הכנסה-לבסיס-נתונים)
+[גיבוי ושחזור](#גיבוי-ושחזור)
 
  [שלב ב](#שלב-ב) 
 > [שאילתות SELECT](#שאילתות-SELECT)  
 [שאילתות עדכון (UPDATE)](#שאילתות-UPDATE)  
 [שאילתות מחיקה (DELETE)](#שאילתות-DELETE)  
-[אילוצים (Constraints)](#אילוצים)  
-    - [ commit and rollback] (#commit-and-rollback)  
+[אילוצים (Constraints)](#אילוצים)
+[ commit and rollback] (#commit-and-rollback)  
 ## שלב א
 ### אודות-הפרויקט
 במסגרת הפרויקט הכיתתי שמטרתו להפעיל רשת מכוני כושר.  
@@ -62,6 +64,13 @@ we created the ERD and relational schema as shown in the pictures below
 <img src="for_md/relational_schema.png"  />    
 
 
+# קבצי יצירת ואכלוס בסיס הנתוני  
+[יצירה CREATE](DBProject_0939_2584/שלב%20א/createTable.sql)
+[מחיקה DROP](DBProject_0939_2584/שלב%20א/dropTable.sql)
+[הכנסת ערכים  INSERT](DBProject_0939_2584/שלב%20א/insertTables.sql)  
+[קריאת הנתונים SELECT] (DBProject_0939_2584/שלב%20א/selectAll.sql) 
+
+## הכנסה לבסיס נתונים
 
 
 ## here are three ways where we added data to the tables
@@ -76,7 +85,9 @@ we created the ERD and relational schema as shown in the pictures below
 
 
 below is the picture of the backup and restoration    
-  
+## גיבוי ושחזור  
+[קובץ הגיבוי](DBProject_0939_2584/שלב%20א/backup_03_04_2025.sql)   
+
 <img src="for_md/backup_screenshot.png"  />      
 <img src="for_md/restoration.jpg"  />      
 
@@ -443,6 +454,8 @@ CHECK (clock_in < clock_out);
 ##  commit and rollback
 
 ### ראשון
+**תיאור**: מוחק את כל נתוני השירות לפני תאריך נתון (נתונים ישנים לא מעניינים)
+
 **לפני מחיקת כל השירותים לפני 2022-07-10**  
 ![alt text](for_md/for_second_stage/image-18.png)  
 
@@ -457,14 +470,14 @@ CHECK (clock_in < clock_out);
 
 ## שני
 
-
+**תיאור**: הוספת עובד חדש
 **לפני הוספת עובד 4000**  
 ![alt text](for_md/for_second_stage/image-22.png)  
 
 **אחרי הוספת עובד 4000**  
 ![alt text](for_md/for_second_stage/image-23.png)   
 
-**אחרי רולבק**  (חח יש בשורה אח"כ את השאילתא הקודמת שכחתי לשנות ל-insert )  
+**אחרי רולבק**  
 ![alt text](for_md/for_second_stage/image-24.png)    
 
 **אחרי הרצת השאילתא שוב קומיט ואז רולבק**  
@@ -473,6 +486,7 @@ CHECK (clock_in < clock_out);
 
 
 ### שלישי  
+**תיאור**: אם כתוב STREET  מקצר אותו לST. 
 
 **לפני שקיצרתי את הכתובת**    
 ![alt text](for_md/for_second_stage/image-26.png)  
