@@ -118,6 +118,8 @@ ORDER BY
 
 -- query 4-- Total entries per gym and zone type, categorized by membership type, including non-members.
 SELECT
+
+	ov.personid,
     ov.gym_name,
     ov.zonetype,
     -- COALESCE replaces NULL values with 'לא חבר'
@@ -133,7 +135,9 @@ WHERE
 GROUP BY
     ov.gym_name,
     ov.zonetype,
-    membershiptype
+    membershiptype,
+	ov.personid
+
 ORDER BY
-    total_entries DESC;
+    ov.personid DESC;
 
