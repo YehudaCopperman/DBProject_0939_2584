@@ -581,8 +581,8 @@ CHECK (clock_in < clock_out);
 <img src="שלב_ג//query_1_view_2.jpg" width="700"/>   
 
 
-#### שאילתא 2  -  
+#### שאילתא 2  -  כל אדם כמה פעמים נכנס לאזור מסוים (לכל שילוב של אדם-אזור יש שורה)
 
-<img src="שלב_ג//query_2_view_2.jpg" width="700"/>   
+<img src="שלב_ג//query_2_view_2.png" width="700"/>   
 
 
