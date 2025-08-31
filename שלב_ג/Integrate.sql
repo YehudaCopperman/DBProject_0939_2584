@@ -29,14 +29,6 @@ ALTER TABLE person
   ADD COLUMN phone   NUMERIC(10);
 
 
-UPDATE person
-   SET pid = pid + 10000;
-update entryrecord 
-  set personid = personid+10000;
-  update exitrecord 
-  set personid = personid-10000;
-
-
 
 ALTER TABLE person_1
 ALTER COLUMN email DROP  not null;
@@ -59,11 +51,11 @@ SELECT * FROM person;
 
 
 UPDATE person
-   SET pid = pid - 10000;
+   SET pid = pid + 10000;
 update entryrecord 
-  set personid = personid-10000;
+  set personid = personid+10000;
   update exitrecord 
-  set personid = personid-10000; 
+  set personid = personid+10000; 
 ALTER TABLE repair
 DROP CONSTRAINT repair_personid_fkey;
   update maintenanceworker 
@@ -121,5 +113,16 @@ ALTER TABLE entryrecord RENAME TO  entryexit;
 
 COMMIT;
 
+
+ drop table person
+ALTER TABLE person_1 RENAME TO  person;
+ALTER TABLE worker_1 RENAME TO  worker;
+ALTER TABLE hourly_1 RENAME TO  hourly;
+ALTER TABLE monthly_1 RENAME TO  monthly;
+ALTER TABLE freelance_1 RENAME TO  freelance;
+ALTER TABLE services_1 RENAME TO  services;
+ALTER TABLE serves_1 RENAME TO  serves;
+ALTER TABLE shift_1 RENAME TO  shift;
+commit;
 
 
