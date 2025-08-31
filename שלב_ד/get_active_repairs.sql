@@ -1,13 +1,15 @@
-
--- Function 2: get_active_repairs.sql
-
+-- Function 2: get_active_repairs.sql  (named cursor)
 CREATE OR REPLACE FUNCTION public.get_active_repairs(
-    p_start_date TIMESTAMP,
-    p_end_date TIMESTAMP,
-    OUT p_repairs_cursor REFCURSOR
+    p_start_date timestamp,
+    p_end_date   timestamp,
+    OUT p_repairs_cursor refcursor
 )
+LANGUAGE plpgsql
 AS $$
 BEGIN
+    -- give the cursor a stable name
+    p_repairs_cursor := 'repairs_cur';
+
     OPEN p_repairs_cursor FOR
         SELECT
             r.personid,
@@ -18,9 +20,9 @@ BEGIN
             r.servicetype
         FROM public.repair r
         JOIN public.maintenanceworker mw ON r.personid = mw.personid
-        JOIN public.person p ON mw.personid = p.pid
-        WHERE r.date BETWEEN p_start_date AND p_end_date
+        JOIN public.person p            ON p.pid = mw.personid
+        WHERE r.date >= p_start_date
+          AND r.date <  p_end_date      -- half-open window is safer than BETWEEN
         ORDER BY r.date;
-
 END;
-$$ LANGUAGE plpgsql;
+$$;
