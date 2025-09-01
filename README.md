@@ -602,15 +602,165 @@ CHECK (clock_in < clock_out);
 
 ## פונקציות  
 ### פונקציה 1  - מחזיר את השכר החודשי של עובד לפי שכר שעתי (פרמטר זה מספר של עובד)   
+#### הקוד  
+```
+CREATE OR REPLACE FUNCTION public.calculate_hourly_worker_salary(
+    p_worker_pid INTEGER,
+    p_month_year DATE
+)
+RETURNS NUMERIC AS $$
+DECLARE
+    v_total_salary NUMERIC := 0;
+    v_regular_hours NUMERIC := 0;
+    v_overtime_hours NUMERIC := 0;
+    v_salary_ph NUMERIC;
+    v_overtime_rate NUMERIC;
+    v_shift_record RECORD;
+
+    -- סמן מפורש (Explicit Cursor)
+    shift_cursor CURSOR FOR
+        SELECT date, clock_in, clock_out
+        FROM public.shift
+        WHERE pid = p_worker_pid AND EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM p_month_year) AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM p_month_year)
+        ORDER BY date;
+BEGIN
+    -- טיפול בחריגה אם העובד אינו עובד שעתי
+    SELECT salaryph, overtimerate INTO v_salary_ph, v_overtime_rate
+    FROM public.hourly
+    WHERE pid = p_worker_pid;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Worker with PID % is not an hourly worker.', p_worker_pid
+        USING HINT = 'Please check the worker type in the hourly table.';
+    END IF;
+
+    -- לולאה באמצעות הסמן
+    OPEN shift_cursor;
+    LOOP
+        FETCH shift_cursor INTO v_shift_record;
+        EXIT WHEN NOT FOUND;
+
+        DECLARE
+            v_duration INTERVAL;
+            v_hours NUMERIC;
+            v_shift_end_time TIME;
+        BEGIN
+            v_shift_end_time := v_shift_record.clock_out;
+            -- לוודא ששעות הסיום הגיוניות (במקרה של משמרת חצות)
+            IF v_shift_end_time < v_shift_record.clock_in THEN
+                v_duration := (v_shift_end_time + INTERVAL '24 hours') - v_shift_record.clock_in;
+            ELSE
+                v_duration := v_shift_end_time - v_shift_record.clock_in;
+            END IF;
+
+            v_hours := EXTRACT(EPOCH FROM v_duration) / 3600;
+
+            -- הסתעפויות: חישוב שעות רגילות ושעות נוספות
+            IF v_hours > 8 THEN
+                v_regular_hours := v_regular_hours + 8;
+                v_overtime_hours := v_overtime_hours + (v_hours - 8);
+            ELSE
+                v_regular_hours := v_regular_hours + v_hours;
+            END IF;
+
+        END;
+    END LOOP;
+    CLOSE shift_cursor;
+
+    v_total_salary := (v_regular_hours * v_salary_ph) + (v_overtime_hours * v_overtime_rate * v_salary_ph);
+
+    RETURN v_total_salary;
+
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### הרצת הפונקצחה
  <img src="שלב_ד//pictures//caculate_hourly_worker_salary.png" width="700"/>   
 
 
 ### פונקציה 2  - מחזיר את התיקונים שהיו פתוחים בתאריך שניתן כפרמטר  
 
+```
+-- Function 2: get_active_repairs.sql  (named cursor)
+CREATE OR REPLACE FUNCTION public.get_active_repairs(
+    p_start_date timestamp,
+    p_end_date   timestamp,
+    OUT p_repairs_cursor refcursor
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- give the cursor a stable name
+    p_repairs_cursor := 'repairs_cur';
+
+    OPEN p_repairs_cursor FOR
+        SELECT
+            r.personid,
+            p.firstname,
+            p.lastname,
+            r.date,
+            r.deviceid,
+            r.servicetype
+        FROM public.repair r
+        JOIN public.maintenanceworker mw ON r.personid = mw.personid
+        JOIN public.person p            ON p.pid = mw.personid
+        WHERE r.date >= p_start_date
+          AND r.date <  p_end_date      -- half-open window is safer than BETWEEN
+        ORDER BY r.date;
+END;
+$$;
+```  
+
  <img src="שלב_ד//pictures//get_active_repears_function.png" width="700"/>   
 
 ## פרוצדורות  
 ### פרוצדורה 1  - רושם מנוי חדש  
+
+#### הקוד 
+```
+
+CREATE OR REPLACE PROCEDURE public.register_new_member(
+    p_pid               integer,
+    p_firstname         text,
+    p_lastname          text,
+    p_dateofb           date,
+    p_email             text ,
+    p_address           text ,
+    p_phone             text ,         -- phone as text is safer than numeric
+    p_membership_type   text,                      -- REQUIRED
+    p_is_active         boolean DEFAULT TRUE
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_type text;
+BEGIN
+    -- Normalize/validate membership type
+    v_type := initcap(btrim(p_membership_type));   -- "monthly" -> "Monthly"
+    IF v_type IS NULL OR v_type = '' THEN
+        RAISE EXCEPTION 'membership_type is required (Monthly, Quarterly, Annual).';
+    ELSIF v_type NOT IN ('Monthly','Quarterly','Annual') THEN
+        RAISE EXCEPTION 'Unsupported membership_type "%". Allowed: Monthly, Quarterly, Annual.', v_type;
+    END IF;
+
+    -- Person must not already exist
+    IF EXISTS (SELECT 1 FROM public.person WHERE pid = p_pid) THEN
+        RAISE EXCEPTION 'A person with PID % already exists.', p_pid;
+    END IF;
+
+    INSERT INTO public.person(pid, dateofb, firstname, lastname, email, address, phone)
+    VALUES (p_pid, p_dateofb, p_firstname, p_lastname, p_email, p_address, p_phone);
+
+    INSERT INTO public.member(personid, memberstartdate, membershiptype, isactive)
+    VALUES (p_pid, CURRENT_DATE, v_type, COALESCE(p_is_active, TRUE));
+
+    RAISE NOTICE 'New member % % with membership type % registered successfully!',
+                 p_firstname, p_lastname, v_type;
+END;
+$$;
+```
+
 לפני  
  <img src="שלב_ד//pictures//register_new_member_before.png" width="700"/>   
  אחרי  
@@ -618,7 +768,54 @@ CHECK (clock_in < clock_out);
  
 
 
-### פרוצדורה 2   - מעדכן את כל החברים האם הם פעילים או לא 
+### פרוצדורה 2   - מעדכן את כל החברי מועדון האם הם פעילים או לא (מעדכן את השדה active של הישות של חבר מועדון)
+#### הקוד
+```
+-- Procedure 2: update_expired_memberships.sql
+CREATE OR REPLACE PROCEDURE public.update_expired_memberships()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_today       DATE := CURRENT_DATE;
+    v_expire_date DATE;
+    member_record RECORD;  -- declare the loop record
+BEGIN
+    RAISE NOTICE 'Starting to update expired memberships...';
+
+    FOR member_record IN
+        SELECT personid, memberstartdate, membershiptype
+        FROM public.member
+        WHERE isactive = TRUE
+    LOOP
+        -- compute expire date; cast to DATE
+        v_expire_date :=
+            CASE member_record.membershiptype
+                WHEN 'Monthly'   THEN (member_record.memberstartdate + INTERVAL '1 month')::date
+                WHEN 'Quarterly' THEN (member_record.memberstartdate + INTERVAL '3 months')::date
+                WHEN 'Annual'    THEN (member_record.memberstartdate + INTERVAL '1 year')::date
+                ELSE NULL
+            END;
+
+        IF v_expire_date IS NULL THEN
+            CONTINUE; -- unsupported type
+        END IF;
+
+        IF v_today >= v_expire_date THEN
+            UPDATE public.member
+            SET isactive = FALSE
+            WHERE personid = member_record.personid
+              AND isactive = TRUE;
+
+            RAISE NOTICE 'Membership for person ID % expired. Status updated to inactive.', member_record.personid;
+        END IF;
+    END LOOP;
+
+    RAISE NOTICE 'Finished updating memberships.';
+END;
+$$;
+```
+
+
 לפני  
 
  <img src="שלב_ד//pictures//update_expired_membership_before.png" width="700"/>   
@@ -628,6 +825,37 @@ CHECK (clock_in < clock_out);
   
 ## טריגרים  
 ### טריגר 1  - כל פעם שמישהו מבקש גישה למכשיר בודק אם הוא עדיים חבר פעיל. אם לא זה לא נותן להכניס "כניסה" לבסיס נתונים 	  
+#### הקוד  
+```
+CREATE OR REPLACE FUNCTION public.check_active_member_on_entry()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_is_active BOOLEAN;
+BEGIN
+    SELECT isactive INTO v_is_active
+    FROM public.member
+    WHERE personid = NEW.personid;
+
+    -- בדיקה והרמת חריגה
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Person with ID % is not a registered member.', NEW.personid;
+    END IF;
+
+    IF v_is_active IS FALSE THEN
+        RAISE EXCEPTION 'Member with ID % is not active. Entry denied.', NEW.personid;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER check_member_status_trigger
+BEFORE INSERT ON public.entryexit
+FOR EACH ROW
+EXECUTE FUNCTION public.check_active_member_on_entry();
+```  
+
+
 במקרה שכן חבר פעיל
 
  <img src="שלב_ד//pictures//check_active_trigger_succeeded.png" width="700"/>   
@@ -637,6 +865,29 @@ CHECK (clock_in < clock_out);
 
 
 ### טריגר 2   - כל פעם שמישהו מדווח משמרת זה (שיש insert לטבלא של משמרות) קורא לטריגר שמעדכן בישות worker את מספר המשמרות שיש (מוסיף 1 כמובן)  
+
+#### הקוד  
+```
+CREATE OR REPLACE FUNCTION public.update_worker_shift_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- עדכון מונה המשמרות של העובד
+    UPDATE public.worker
+    SET total_shifts = (SELECT COUNT(*) FROM public.shift WHERE pid = NEW.pid)
+    WHERE pid = NEW.pid;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER update_shifts_after_shift_change
+AFTER INSERT OR UPDATE ON public.shift
+FOR EACH ROW
+EXECUTE FUNCTION public.update_worker_shift_count();
+
+
+
+```  
 לפני שהכניס איזשהו משמרת
  <img src="שלב_ד//pictures//worker_before_shift_trigger.png" width="700"/>   
 אחרי שהכניס משמרת
