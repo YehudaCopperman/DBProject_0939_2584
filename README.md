@@ -601,17 +601,51 @@ CHECK (clock_in < clock_out);
 # שלב ד
 
 ## פונקציות  
-### פונקציה 1  
-### פונקציה 2  
+### פונקציה 1  - מחזיר את השכר החודשי של עובד לפי שכר שעתי (פרמטר זה מספר של עובד)   
+ <img src="שלב_ד//pictures//caculate_hourly_worker_salary.png" width="700"/>   
+
+
+### פונקציה 2  - מחזיר את התיקונים שהיו פתוחים בתאריך שניתן כפרמטר  
+
+ <img src="שלב_ד//pictures//get_active_repears_function.png" width="700"/>   
+
 ## פרוצדורות  
-### פרוצדורה 1  
-### פרוצדורה 2  
+### פרוצדורה 1  - רושם מנוי חדש  
+לפני  
+ <img src="שלב_ד//pictures//register_new_member_before.png" width="700"/>   
+ אחרי  
+ <img src="שלב_ד//pictures//register_new_member_after.png" width="700"/>   
+ 
+
+
+### פרוצדורה 2   - מעדכן את כל החברים האם הם פעילים או לא 
+לפני  
+
+ <img src="שלב_ד//pictures//update_expired_membership_before.png" width="700"/>   
+אחרי  
+ <img src="שלב_ד//pictures//update_expired_membership_after.png" width="700"/>   
+
   
 ## טריגרים  
-### טריגר 1  
-### טריגר 2  
+### טריגר 1  - כל פעם שמישהו מבקש גישה למכשיר בודק אם הוא עדיים חבר פעיל. אם לא זה לא נותן להכניס "כניסה" לבסיס נתונים 	  
+במקרה שכן חבר פעיל
 
-## תכניות ראשיות
+ <img src="שלב_ד//pictures//check_active_trigger_succeeded.png" width="700"/>   
+ במקרה שלא חבר פעיל
+ <img src="שלב_ד//pictures//check_active_trigger_failed.png" width="700"/>   
+ 
+
+
+### טריגר 2   - כל פעם שמישהו מדווח משמרת זה (שיש insert לטבלא של משמרות) קורא לטריגר שמעדכן בישות worker את מספר המשמרות שיש (מוסיף 1 כמובן)  
+לפני שהכניס איזשהו משמרת
+ <img src="שלב_ד//pictures//worker_before_shift_trigger.png" width="700"/>   
+אחרי שהכניס משמרת
+
+
+ <img src="שלב_ד//pictures//worker_bafter_shift_trigger.png" width="700"/>   
+
+
+## תכניות ראשיות  
 
 
 
