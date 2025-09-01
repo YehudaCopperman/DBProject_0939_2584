@@ -1,30 +1,31 @@
-
--- Main Program 2: main_update_members_and_get_repairs.sql
-
 DO $$
 DECLARE
-    v_repairs_cursor REFCURSOR;
-    v_repair_record RECORD;
+    v_cur REFCURSOR;
+    rec   RECORD;
 BEGIN
     RAISE NOTICE 'Executing Main Program 2...';
 
-    -- קריאה לפרוצדורה: עדכון סטטוס מנוי
+    -- 1) Update memberships
     CALL public.update_expired_memberships();
 
-    -- קריאה לפונקציה: קבלת רשימת שיפוצים באמצעות Ref Cursor
-    SELECT public.get_active_repairs('2025-01-01 00:00:00', '2025-08-31 23:59:59') INTO v_repairs_cursor;
+    -- 2) Get the opened refcursor from your function
+    v_cur := public.get_active_repairs(
+               TIMESTAMP '2025-01-01 00:00:00',
+               TIMESTAMP '2025-08-31 23:59:59'
+             );
 
     RAISE NOTICE 'Fetching active repairs...';
+
     LOOP
-        FETCH NEXT FROM v_repairs_cursor INTO v_repair_record;
+        FETCH NEXT FROM v_cur INTO rec;
         EXIT WHEN NOT FOUND;
 
-        RAISE NOTICE 'Repair by % % (ID: %) on % for device ID % (%): %',
-            v_repair_record.firstname, v_repair_record.lastname, v_repair_record.personid,
-            v_repair_record.date, v_repair_record.deviceid, v_repair_record.servicetype;
-
+        -- 6 placeholders, 6 args
+        RAISE NOTICE 'Repair by % % (ID: %) on % for device ID % (%).',
+            rec.firstname, rec.lastname, rec.personid,
+            rec.date, rec.deviceid, rec.servicetype;
     END LOOP;
-    CLOSE v_repairs_cursor;
 
+    CLOSE v_cur;
 END;
 $$ LANGUAGE plpgsql;
