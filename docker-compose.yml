@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: gym_db
+      POSTGRES_USER: yehuda
+      POSTGRES_PASSWORD: ninga
+    volumes:
+      - ./שלב_ה/docker-sql:/docker-entrypoint-initdb.d/
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yehuda -d gym_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrations:
+    image: postgres:15        # כולל psql
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"             # רץ, מסיים בהצלחה ויוצא
+    environment:
+      PGPASSWORD: ninga
+    volumes:
+      - ./שלב_ה/migrations:/migrations
+    command: >
+      bash -lc "
+      psql -h db -U yehuda -d gym_db -v ON_ERROR_STOP=1 -f /migrations/20-indexes.sql &&
+      psql -h db -U yehuda -d gym_db -v ON_ERROR_STOP=1 -f /migrations/30-procedures.sql
+      "
