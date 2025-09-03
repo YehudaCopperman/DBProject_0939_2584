@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, Toplevel
 from datetime import datetime, date
 from ..ui.base import BasePage
 from ..ui.widgets import PaginationBar
@@ -9,17 +9,29 @@ from ..config import PAGE_SIZE
 FMT_TS = "%Y-%m-%d %H:%M:%S"
 
 class ShiftsPage(BasePage):
-    def __init__(self, parent, controller):
-        super().__init__(parent, controller, "משמרות (Shift)")
+    """Shifts CRUD page. For hourly users: PID is locked and a Change Password action is available."""
 
-        # --- טופס עריכה ---
-        form = ttk.LabelFrame(self.card, text="ניהול משמרת", padding=12)
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller, "Shifts")
+
+        # --- header actions (role-specific) ---
+        self.actions_bar = ttk.Frame(self.card, padding=(0, 6, 0, 0), style="Card.TFrame")
+        self.actions_bar.pack(fill="x")
+        # Visible only for hourly users:
+        self.btn_change_pwd = ttk.Button(
+            self.actions_bar, text="Change Password", style="Ghost.TButton",
+            command=self._open_change_password_dialog
+        )
+        # We'll pack/forget this button in on_show() according to role.
+
+        # --- edit form ---
+        form = ttk.LabelFrame(self.card, text="Shift Editor", padding=12)
         form.pack(fill="x", pady=8)
 
         self.inputs = {}
         fields = [
-            ("PID", "pid"),  # אצל hourly יינעל לערך שלו
-            ("תאריך משמרת YYYY-MM-DD", "date"),
+            ("PID", "pid"),  # locked for hourly role
+            ("Shift Date YYYY-MM-DD", "date"),
             ("Clock In YYYY-MM-DD HH:MM:SS", "clock_in"),
             ("Clock Out YYYY-MM-DD HH:MM:SS", "clock_out"),
         ]
@@ -32,33 +44,33 @@ class ShiftsPage(BasePage):
 
         btns = ttk.Frame(form)
         btns.grid(row=len(fields), column=0, columnspan=2, sticky="e", pady=8)
-        ttk.Button(btns, text="הוסף", style="Primary.TButton", command=self._create).pack(side="left", padx=4)
-        ttk.Button(btns, text="עדכן", style="Ghost.TButton", command=self._update).pack(side="left", padx=4)
-        ttk.Button(btns, text="מחק", style="Danger.TButton", command=self._delete).pack(side="left", padx=4)
-        ttk.Button(btns, text="נקה", style="Ghost.TButton", command=self._clear).pack(side="left", padx=4)
+        ttk.Button(btns, text="Create", style="Primary.TButton", command=self._create).pack(side="left", padx=4)
+        ttk.Button(btns, text="Update", style="Ghost.TButton", command=self._update).pack(side="left", padx=4)
+        ttk.Button(btns, text="Delete", style="Danger.TButton", command=self._delete).pack(side="left", padx=4)
+        ttk.Button(btns, text="Clear", style="Ghost.TButton", command=self._clear).pack(side="left", padx=4)
 
-        # --- פס סינון ---
+        # --- filter bar ---
         filt = ttk.Frame(self.card, padding=(0, 6, 0, 0), style="Card.TFrame")
         filt.pack(fill="x")
 
-        # נשמור רפרנס גם לתווית כדי שנוכל להסתיר אותה
-        self.lbl_filter_pid = ttk.Label(filt, text="סינון לפי PID")
+        # We'll show PID filter only to admin
+        self.lbl_filter_pid = ttk.Label(filt, text="Filter by PID")
         self.lbl_filter_pid.pack(side="left", padx=(0, 6))
         self.filter_pid = ttk.Entry(filt, width=10)
         self.filter_pid.pack(side="left")
 
-        ttk.Label(filt, text="חודש (1-12)").pack(side="left", padx=(12, 6))
+        ttk.Label(filt, text="Month (1-12)").pack(side="left", padx=(12, 6))
         self.filter_month = ttk.Entry(filt, width=6)
         self.filter_month.pack(side="left")
 
-        ttk.Label(filt, text="שנה (YYYY)").pack(side="left", padx=(12, 6))
+        ttk.Label(filt, text="Year (YYYY)").pack(side="left", padx=(12, 6))
         self.filter_year = ttk.Entry(filt, width=8)
         self.filter_year.pack(side="left")
 
-        ttk.Button(filt, text="סנן", style="Ghost.TButton", command=self._apply_filter).pack(side="left", padx=6)
-        ttk.Button(filt, text="נקה סינון", style="Ghost.TButton", command=self._clear_filter).pack(side="left")
+        ttk.Button(filt, text="Apply", style="Ghost.TButton", command=self._apply_filter).pack(side="left", padx=6)
+        ttk.Button(filt, text="Clear Filters", style="Ghost.TButton", command=self._clear_filter).pack(side="left")
 
-        # --- טבלה ---
+        # --- table ---
         table = ttk.Frame(self.card, padding=(0, 8, 0, 0), style="Card.TFrame")
         table.pack(fill="both", expand=True)
         cols = ("pid", "date", "clock_in", "clock_out")
@@ -72,7 +84,7 @@ class ShiftsPage(BasePage):
         vsb.pack(side="right", fill="y")
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
 
-        # --- פאג'ינציה ---
+        # --- pagination ---
         self.page = 1
         self.total = 0
         self.pager = PaginationBar(self.card, on_page_change=self._goto_page,
@@ -81,27 +93,37 @@ class ShiftsPage(BasePage):
 
         self._current_selected = None
 
+    # ---------- role-aware setup ----------
     def on_show(self):
         role = (self.controller.current_user or {}).get("role")
         pid = (self.controller.current_user or {}).get("personid")
 
+        # Hourly: lock PID and show Change Password button; hide PID filter
         if role == "hourly":
-            # נעל PID בטופס
+            # lock PID in the form
             self.inputs["pid"].configure(state="normal")
             self.inputs["pid"].delete(0, tk.END)
             if pid:
                 self.inputs["pid"].insert(0, str(pid))
             self.inputs["pid"].configure(state="disabled")
 
-            # הסתרת סינון PID לחלוטין
+            # show Change Password button
+            if not self.btn_change_pwd.winfo_ismapped():
+                self.btn_change_pwd.pack(side="right")
+
+            # hide PID filter
             if self.filter_pid.winfo_ismapped():
                 self.filter_pid.pack_forget()
             if self.lbl_filter_pid.winfo_ismapped():
                 self.lbl_filter_pid.pack_forget()
+
         else:
-            # אדמין
+            # Admin: allow PID editing, show PID filter, hide Change Password
+            if self.btn_change_pwd.winfo_ismapped():
+                self.btn_change_pwd.pack_forget()
+
             if not self.lbl_filter_pid.winfo_ismapped():
-                self.lbl_filter_pid.pack(side="left", padx=(0,6))
+                self.lbl_filter_pid.pack(side="left", padx=(0, 6))
             if not self.filter_pid.winfo_ismapped():
                 self.filter_pid.pack(side="left")
 
@@ -109,6 +131,67 @@ class ShiftsPage(BasePage):
 
         self._load()
 
+    # ---------- change password dialog (hourly only) ----------
+    def _open_change_password_dialog(self):
+        """Opens a modal dialog for hourly users to change their password."""
+        role = (self.controller.current_user or {}).get("role")
+        pid = (self.controller.current_user or {}).get("personid")
+        if role != "hourly" or pid is None:
+            return
+
+        dlg = Toplevel(self)
+        dlg.title("Change Password")
+        dlg.transient(self.winfo_toplevel())
+        dlg.grab_set()
+
+        frm = ttk.Frame(dlg, padding=16)
+        frm.pack(fill="both", expand=True)
+
+        ttk.Label(frm, text=f"PID: {pid}").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+
+        ttk.Label(frm, text="Current password").grid(row=1, column=0, sticky="w", pady=4)
+        e_old = ttk.Entry(frm, show="*", width=28)
+        e_old.grid(row=1, column=1, pady=4)
+
+        ttk.Label(frm, text="New password").grid(row=2, column=0, sticky="w", pady=4)
+        e_new = ttk.Entry(frm, show="*", width=28)
+        e_new.grid(row=2, column=1, pady=4)
+
+        btns = ttk.Frame(frm)
+        btns.grid(row=3, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        ttk.Button(btns, text="Cancel", style="Ghost.TButton", command=dlg.destroy).pack(side="left", padx=4)
+
+        def submit():
+            old = (e_old.get() or "").strip()
+            new = (e_new.get() or "").strip()
+            if not old or not new:
+                return messagebox.showerror("Error", "Both fields are required", parent=dlg)
+            if len(new) < 4:
+                return messagebox.showerror("Error", "New password must be at least 4 characters", parent=dlg)
+
+            def task(conn):
+                return dao.change_password_by_pid(conn, int(pid), old, new)
+
+            def ok(changed: bool):
+                if not changed:
+                    return messagebox.showerror("Error", "Wrong current password or operation failed", parent=dlg)
+                messagebox.showinfo("Success", "Password changed successfully", parent=dlg)
+                dlg.destroy()
+
+            self.controller.run_db_task(
+                task, on_success=ok, on_error=lambda e: messagebox.showerror("DB Error", str(e), parent=dlg)
+            )
+
+        ttk.Button(btns, text="Change", style="Primary.TButton", command=submit).pack(side="left", padx=4)
+
+        # Enter key submissions
+        e_old.bind("<Return>", lambda _: e_new.focus_set())
+        e_new.bind("<Return>", lambda _: submit())
+
+        # focus first field
+        e_old.focus_set()
+
+    # ---------- pagination & filters ----------
     def _goto_page(self, p):
         self.page = p
         self._load()
@@ -124,11 +207,12 @@ class ShiftsPage(BasePage):
             self.filter_pid.delete(0, tk.END)
         self._load()
 
+    # ---------- data loading ----------
     def _load(self):
         role = (self.controller.current_user or {}).get("role")
         user_pid = (self.controller.current_user or {}).get("personid")
 
-        # מי ה-PID לבקשה?
+        # determine PID filter
         if role == "hourly":
             pid = user_pid
         else:
@@ -139,7 +223,7 @@ class ShiftsPage(BasePage):
         m = self.filter_month.get().strip()
         y = self.filter_year.get().strip()
         month = int(m) if m.isdigit() and 1 <= int(m) <= 12 else None
-        year  = int(y) if y.isdigit() and len(y) == 4 else None
+        year = int(y) if y.isdigit() and len(y) == 4 else None
 
         def task(conn):
             return dao.list_shifts(conn, search_pid=pid, month=month, year=year,
@@ -148,7 +232,7 @@ class ShiftsPage(BasePage):
         def ok(res):
             rows, total = res
 
-            # הגנה נוספת בצד־לקוח: אם hourly, נציג רק את השורות של עצמו, גם אם בטעות השרת החזיר אחרות.
+            # extra client-side guard for hourly
             if role == "hourly" and user_pid is not None:
                 rows = [r for r in rows if int(r[0]) == int(user_pid)]
                 total = len(rows)
@@ -170,13 +254,14 @@ class ShiftsPage(BasePage):
             cout = cout.strftime(FMT_TS) if cout else ""
             self.tree.insert("", "end", values=(pid, sdate, cin, cout))
 
+    # ---------- CRUD handlers ----------
     def _on_select(self, _):
         it = self.tree.focus()
         if not it:
             return
         pid, sdate, cin, cout = self.tree.item(it, "values")
 
-        # אם hourly בחר שורה לא שלו — נתעלם
+        # hourly cannot select others' rows
         role = (self.controller.current_user or {}).get("role")
         user_pid = (self.controller.current_user or {}).get("personid")
         if role == "hourly" and user_pid is not None and int(pid) != int(user_pid):
@@ -199,15 +284,15 @@ class ShiftsPage(BasePage):
             cin = datetime.strptime(self.inputs["clock_in"].get(), FMT_TS)
             cout = datetime.strptime(self.inputs["clock_out"].get(), FMT_TS)
         except Exception as e:
-            return messagebox.showerror("שגיאה", f"קלט שגוי: {e}")
+            return messagebox.showerror("Error", f"Invalid input: {e}")
 
         def task(conn):
             return dao.create_shift(conn, pid, sdate, cin, cout)
-        self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("הצלחה","נוצר"), self._load()), on_error=self._err)
+        self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("Success","Created"), self._load()), on_error=self._err)
 
     def _update(self):
         if not self._current_selected:
-            return messagebox.showerror("שגיאה", "בחר משמרת לעריכה")
+            return messagebox.showerror("Error", "Select a shift to edit")
 
         role = (self.controller.current_user or {}).get("role")
         user_pid = (self.controller.current_user or {}).get("personid")
@@ -218,27 +303,27 @@ class ShiftsPage(BasePage):
             cout = datetime.strptime(self.inputs["clock_out"].get(), FMT_TS)
             old_cin = datetime.strptime(self._current_selected[2], FMT_TS)
         except Exception as e:
-            return messagebox.showerror("שגיאה", f"קלט שגוי: {e}")
+            return messagebox.showerror("Error", f"Invalid input: {e}")
 
         def task(conn):
             return dao.update_shift(conn, pid, sdate, old_cin, new_cin, cout)
-        self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("הצלחה","עודכן"), self._load()), on_error=self._err)
+        self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("Success","Updated"), self._load()), on_error=self._err)
 
     def _delete(self):
         if not self._current_selected:
-            return messagebox.showerror("שגיאה", "בחר משמרת למחיקה")
+            return messagebox.showerror("Error", "Select a shift to delete")
 
         role = (self.controller.current_user or {}).get("role")
         user_pid = (self.controller.current_user or {}).get("personid")
         pid, sdate, cin = self._current_selected
         pid = int(user_pid) if role == "hourly" else int(pid)
 
-        if not messagebox.askyesno("אישור", f"למחוק משמרת של PID {pid} בתאריך {sdate}?"):
+        if not messagebox.askyesno("Confirm", f"Delete shift for PID {pid} on {sdate}?"):
             return
 
         def task(conn):
             return dao.delete_shift(conn, pid, sdate, cin)
-        self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("הצלחה","נמחק"), self._load()), on_error=self._err)
+        self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("Success","Deleted"), self._load()), on_error=self._err)
 
     def _clear(self):
         for e in self.inputs.values():
@@ -251,4 +336,4 @@ class ShiftsPage(BasePage):
             self.inputs["pid"].configure(state="disabled")
 
     def _err(self, e):
-        messagebox.showerror("שגיאה", str(e))
+        messagebox.showerror("Error", str(e))
