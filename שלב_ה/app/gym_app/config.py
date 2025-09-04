@@ -5,6 +5,10 @@ config.py - הגדרות ואילוצים ניתנים לשינוי בלי לג�
 """
 from dataclasses import dataclass
 
+# App title for the main window
+APP_TITLE = "Gym Management System"
+
+
 @dataclass(frozen=True)
 class DBConfig:
     host: str = "localhost"

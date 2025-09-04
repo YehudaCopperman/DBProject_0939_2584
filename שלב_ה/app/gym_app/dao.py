@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 DAO layer for Gym Management App (Tkinter + PostgreSQL).
-All DB-facing functions live here. Each write operation commits.
+Each write commits. Errors are raised as Python exceptions for the UI to show nicely.
 """
 
 from __future__ import annotations
@@ -10,16 +10,11 @@ from typing import Optional, Tuple, List, Dict
 from datetime import date, datetime
 from psycopg2 import sql
 
-
 # =========================
 #  Authentication & Users
 # =========================
 
 def authenticate_user(conn, username: str, password: str) -> Optional[Tuple[int, int, str]]:
-    """
-    Calls DB function authenticate_user(username, password) → (user_id, personid, role)
-    Returns None if credentials are invalid.
-    """
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM authenticate_user(%s, %s)", (username, password))
         row = cur.fetchone()
@@ -27,10 +22,6 @@ def authenticate_user(conn, username: str, password: str) -> Optional[Tuple[int,
 
 
 def change_password_by_pid(conn, pid: int, current_password: str, new_password: str) -> bool:
-    """
-    Calls DB function change_password_by_pid(pid, current_password, new_password) → boolean.
-    Returns True on success.
-    """
     with conn.cursor() as cur:
         cur.execute(
             "SELECT change_password_by_pid(%s, %s, %s)",
@@ -42,22 +33,266 @@ def change_password_by_pid(conn, pid: int, current_password: str, new_password: 
 
 
 def admin_reset_password_by_pid(conn, pid: int) -> None:
-    """
-    Calls DB function admin_reset_password_by_pid(pid).
-    Expected behavior: reset username/password to PID; create auth_user if missing.
-    """
     with conn.cursor() as cur:
         cur.execute("SELECT admin_reset_password_by_pid(%s)", (pid,))
     conn.commit()
 
 
 def ensure_default_admin(conn) -> None:
-    """
-    Calls ensure_default_admin() to create PID=1 admin (user=1, pass=1) only if no admins exist.
-    Safe to call at app startup.
-    """
     with conn.cursor() as cur:
         cur.execute("SELECT ensure_default_admin()")
+    conn.commit()
+
+
+# =========================
+#  Helpers (schema/validation)
+# =========================
+
+def _varchar_limits(conn, table: str) -> Dict[str, Optional[int]]:
+    """
+    Return {column: character_maximum_length or None} for a table.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name, character_maximum_length
+            FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=%s
+            """,
+            (table,),
+        )
+        return {name: maxlen for (name, maxlen) in cur.fetchall()}
+
+
+def _validate_varchar_lengths(values: Dict[str, Optional[str]], limits: Dict[str, Optional[int]]):
+    """
+    Raise ValueError if any provided text value exceeds its varchar limit.
+    """
+    too_long = []
+    for col, val in values.items():
+        if val is None:
+            continue
+        maxlen = limits.get(col)
+        if maxlen is not None and isinstance(val, str) and len(val) > maxlen:
+            too_long.append(f"{col} (max {maxlen}, got {len(val)})")
+    if too_long:
+        raise ValueError("Text too long: " + ", ".join(too_long))
+
+
+# =========================
+#  Persons CRUD (paging)
+# =========================
+
+def person_exists(conn, pid: int) -> bool:
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM person WHERE pid=%s", (pid,))
+        return cur.fetchone() is not None
+
+
+def list_persons(
+    conn,
+    search: str = "",
+    page: int = 1,
+    page_size: int = 20,
+) -> Tuple[List[Tuple], int]:
+    search = (search or "").strip()
+    where = ""
+    args: List = []
+    if search:
+        where = """WHERE (firstname ILIKE %s OR lastname ILIKE %s OR pid::text ILIKE %s)"""
+        args = [f"%{search}%", f"%{search}%", f"%{search}%"]
+
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT COUNT(*) FROM person {where}", args)
+        total = int(cur.fetchone()[0])
+
+        offset = (max(1, page) - 1) * max(1, page_size)
+        cur.execute(
+            f"""
+            SELECT pid, firstname, lastname, dateofb, email, address, phone
+            FROM person
+            {where}
+            ORDER BY pid ASC
+            LIMIT %s OFFSET %s
+            """,
+            args + [page_size, offset],
+        )
+        rows = cur.fetchall()
+    return rows, total
+
+
+def create_person(
+    conn,
+    pid: int,
+    firstname: str,
+    lastname: str,
+    dateofb: date,
+    email: Optional[str],
+    address: Optional[str],
+    phone: Optional[int],
+) -> None:
+    # 1) prevent duplicate PID (PK יפיל גם כך, אבל עדיף הודעה ידידותית)
+    if person_exists(conn, pid):
+        raise ValueError(f"PID {pid} already exists")
+
+    # 2) length validation by schema limits
+    limits = _varchar_limits(conn, "person")
+    _validate_varchar_lengths(
+        {
+            "firstname": firstname,
+            "lastname": lastname,
+            "email": email,
+            "address": address,
+        },
+        limits,
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO person(pid, dateofb, firstname, lastname, email, address, phone)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (pid, dateofb, firstname, lastname, email, address, phone),
+        )
+    conn.commit()
+
+
+def update_person(
+    conn,
+    pid: int,
+    firstname: str,
+    lastname: str,
+    dateofb: date,
+    email: Optional[str],
+    address: Optional[str],
+    phone: Optional[int],
+) -> None:
+    # validate varchar lengths
+    limits = _varchar_limits(conn, "person")
+    _validate_varchar_lengths(
+        {
+            "firstname": firstname,
+            "lastname": lastname,
+            "email": email,
+            "address": address,
+        },
+        limits,
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE person
+               SET firstname=%s, lastname=%s, dateofb=%s, email=%s, address=%s, phone=%s
+             WHERE pid=%s
+            """,
+            (firstname, lastname, dateofb, email, address, phone, pid),
+        )
+        if cur.rowcount == 0:
+            raise RuntimeError("Person not found or unchanged")
+    conn.commit()
+
+
+def delete_person(conn, pid: int) -> None:
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM person WHERE pid=%s", (pid,))
+        if cur.rowcount == 0:
+            raise RuntimeError("Person not found")
+    conn.commit()
+
+
+# =========================
+#  Members (join person)
+# =========================
+
+def list_members(
+    conn,
+    search: str = "",
+    page: int = 1,
+    page_size: int = 20,
+) -> Tuple[List[Tuple], int]:
+    search = (search or "").strip()
+    where = ""
+    args: List = []
+    if search:
+        where = """
+        WHERE (p.firstname ILIKE %s OR p.lastname ILIKE %s OR p.pid::text ILIKE %s)
+        """
+        args = [f"%{search}%", f"%{search}%", f"%{search}%"]
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            WITH joined AS (
+              SELECT p.pid, p.firstname, p.lastname,
+                     m.membershiptype, m.memberstartdate, m.isactive
+              FROM person p
+              JOIN member m ON m.personid = p.pid
+            )
+            SELECT COUNT(*) FROM joined {where}
+            """,
+            args,
+        )
+        total = int(cur.fetchone()[0])
+
+        offset = (max(1, page) - 1) * max(1, page_size)
+        cur.execute(
+            f"""
+            WITH joined AS (
+              SELECT p.pid, p.firstname, p.lastname,
+                     m.membershiptype, m.memberstartdate, m.isactive
+              FROM person p
+              JOIN member m ON m.personid = p.pid
+            )
+            SELECT pid, firstname, lastname, membershiptype, memberstartdate, isactive
+            FROM joined
+            {where}
+            ORDER BY pid ASC
+            LIMIT %s OFFSET %s
+            """,
+            args + [page_size, offset],
+        )
+        rows = cur.fetchall()
+    return rows, total
+
+
+def upsert_member_via_proc(
+    conn,
+    pid: int,
+    firstname: str,
+    lastname: str,
+    dateofb: Optional[date],
+    email: Optional[str],
+    address: Optional[str],
+    phone: Optional[int],
+    membershiptype: str,
+    isactive: bool,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "CALL register_new_member(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (pid, firstname, lastname, dateofb, email, address, phone, membershiptype, isactive),
+        )
+    conn.commit()
+
+
+def update_member(conn, pid: int, membershiptype: str, isactive: bool) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE member SET membershiptype=%s, isactive=%s WHERE personid=%s",
+            (membershiptype, isactive, pid),
+        )
+        if cur.rowcount == 0:
+            raise RuntimeError("Member row not found or unchanged")
+    conn.commit()
+
+
+def delete_member(conn, pid: int) -> None:
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM member WHERE personid=%s", (pid,))
+        if cur.rowcount == 0:
+            raise RuntimeError("Member row not found")
     conn.commit()
 
 
@@ -73,11 +308,6 @@ def list_shifts(
     page: int = 1,
     page_size: int = 20,
 ) -> Tuple[List[Tuple], int]:
-    """
-    Returns (rows, total) for shifts with optional filters.
-    Rows are (pid, date, clock_in, clock_out).
-    """
-    # Build filters with simple parameter binding
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -112,14 +342,10 @@ def list_shifts(
             (search_pid, search_pid, month, month, year, year, page_size, offset),
         )
         rows = cur.fetchall()
-
     return rows, total
 
 
 def create_shift(conn, pid: int, sdate: date, clock_in: datetime, clock_out: datetime) -> None:
-    """
-    Insert a new shift row.
-    """
     with conn.cursor() as cur:
         cur.execute(
             'INSERT INTO shift(pid, "date", clock_in, clock_out) VALUES (%s, %s, %s, %s)',
@@ -136,9 +362,6 @@ def update_shift(
     new_clock_in: datetime,
     clock_out: datetime,
 ) -> None:
-    """
-    Update a shift identified by (pid, date, old_clock_in).
-    """
     with conn.cursor() as cur:
         cur.execute(
             'UPDATE shift SET clock_in=%s, clock_out=%s WHERE pid=%s AND "date"=%s AND clock_in=%s',
@@ -149,10 +372,7 @@ def update_shift(
     conn.commit()
 
 
-def delete_shift(conn, pid: int, sdate: date, clock_in: datetime) -> None:
-    """
-    Delete a shift identified by (pid, date, clock_in).
-    """
+def delete_shift(conn, pid: int, sdate, clock_in) -> None:
     with conn.cursor() as cur:
         cur.execute(
             'DELETE FROM shift WHERE pid=%s AND "date"=%s AND clock_in=%s',
@@ -163,11 +383,55 @@ def delete_shift(conn, pid: int, sdate: date, clock_in: datetime) -> None:
     conn.commit()
 
 
+# =========================
+#  Reports & Procedures
+# =========================
+
+def hours_by_month(conn, month: int, year: int) -> List[Tuple[str, str, float]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT p.firstname, p.lastname,
+                   SUM(EXTRACT(EPOCH FROM (s.clock_out - s.clock_in))) / 3600 AS total_hours
+            FROM person p
+            JOIN shift s ON p.pid = s.pid
+            WHERE EXTRACT(MONTH FROM s.date) = %s
+              AND EXTRACT(YEAR  FROM s.date) = %s
+            GROUP BY p.pid, p.firstname, p.lastname
+            ORDER BY total_hours DESC
+            """,
+            (month, year),
+        )
+        return cur.fetchall()
+
+
+def most_expensive_service(conn) -> List[Tuple[str, float]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            WITH listoftotals AS (
+              SELECT servicename, SUM(price) AS total
+              FROM serves
+              GROUP BY servicename
+            )
+            SELECT servicename AS most_expensive_service, total
+            FROM listoftotals
+            WHERE total = (SELECT MAX(total) FROM listoftotals)
+            """
+        )
+        return cur.fetchall()
+
+
+def proc_update_expired(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute("CALL update_expired_memberships()")
+    conn.commit()
+
+
 # ===========================================
 #  Generic Admin Data Manager (whitelisted)
 # ===========================================
 
-# Restrict which tables can be edited via the generic UI
 ALLOWED_TABLES = [
     "person", "member", "worker", "hourly", "monthly", "freelance",
     "maintenanceworker", "gym", "accessdevice", "entryexit", "shift", "serves"
@@ -175,17 +439,10 @@ ALLOWED_TABLES = [
 
 
 def list_allowed_tables() -> List[str]:
-    """Return the allowed tables for the generic Data Manager."""
     return ALLOWED_TABLES[:]
 
 
 def get_table_columns(conn, table: str) -> Tuple[List[Dict], List[str]]:
-    """
-    Introspect columns and primary key columns for a given table.
-    Returns: (columns, pk_cols)
-      columns: [{name, data_type, nullable, default}]
-      pk_cols: [col, ...] ordered
-    """
     if table not in ALLOWED_TABLES:
         raise ValueError("Table not allowed")
 
@@ -246,17 +503,12 @@ def fetch_table_rows_advanced(
     sort_by: Optional[str] = None,
     sort_dir: str = "ASC",
 ) -> Tuple[List[Tuple], int, List[str], List[Dict], List[str]]:
-    """
-    Fetch rows for a given table with optional search (ILIKE for text) and sort.
-    Returns: (rows, total, col_names, cols_meta, pk_cols)
-    """
     if table not in ALLOWED_TABLES:
         raise ValueError("Table not allowed")
 
     cols_meta, pk_cols = get_table_columns(conn, table)
     col_names = [c["name"] for c in cols_meta]
 
-    # WHERE
     where_sql = sql.SQL("")
     where_args: List = []
     if search_column and search_value and search_column in col_names:
@@ -268,21 +520,18 @@ def fetch_table_rows_advanced(
             where_sql = sql.SQL("WHERE {} = %s").format(sql.Identifier(search_column))
             where_args.append(search_value)
 
-    # ORDER BY
     if sort_by and sort_by in col_names:
         direction = "DESC" if str(sort_dir).upper().startswith("D") else "ASC"
         order_sql = sql.SQL("ORDER BY {} {} NULLS LAST").format(
             sql.Identifier(sort_by), sql.SQL(direction)
         )
     else:
-        # default: by PK; else first column
         order_cols = pk_cols if pk_cols else col_names[:1]
         order_sql = sql.SQL("ORDER BY {} NULLS LAST").format(
             sql.SQL(", ").join(sql.Identifier(c) for c in order_cols)
         )
 
     with conn.cursor() as cur:
-        # total
         cur.execute(
             sql.SQL("SELECT COUNT(*) FROM {} {}").format(
                 sql.Identifier(table), where_sql
@@ -291,7 +540,6 @@ def fetch_table_rows_advanced(
         )
         total = int(cur.fetchone()[0])
 
-        # page
         cur.execute(
             sql.SQL("SELECT {} FROM {} {} {} LIMIT %s OFFSET %s").format(
                 sql.SQL(", ").join(sql.Identifier(c) for c in col_names),
@@ -306,11 +554,14 @@ def fetch_table_rows_advanced(
     return rows, total, col_names, cols_meta, pk_cols
 
 
+def fetch_table_rows(conn, table: str, limit: int = 100, offset: int = 0) -> Tuple[List[Tuple], int, List[str]]:
+    rows, total, col_names, _meta, _pk = fetch_table_rows_advanced(
+        conn, table, limit=limit, offset=offset
+    )
+    return rows, total, col_names
+
+
 def insert_row(conn, table: str, payload: Dict) -> None:
-    """
-    Insert a row. payload maps column->value (strings are fine; PG will cast when possible).
-    Skips columns not in table.
-    """
     if table not in ALLOWED_TABLES:
         raise ValueError("Table not allowed")
 
@@ -334,9 +585,6 @@ def insert_row(conn, table: str, payload: Dict) -> None:
 
 
 def update_row(conn, table: str, payload: Dict, pk_values: Dict) -> None:
-    """
-    Update a row by primary key. payload is non-PK fields.
-    """
     if table not in ALLOWED_TABLES:
         raise ValueError("Table not allowed")
 
@@ -364,9 +612,6 @@ def update_row(conn, table: str, payload: Dict, pk_values: Dict) -> None:
 
 
 def delete_row(conn, table: str, pk_values: Dict) -> None:
-    """
-    Delete a row by primary key (composite keys supported).
-    """
     if table not in ALLOWED_TABLES:
         raise ValueError("Table not allowed")
 
@@ -384,39 +629,4 @@ def delete_row(conn, table: str, pk_values: Dict) -> None:
         )
         if cur.rowcount == 0:
             raise RuntimeError("Row not found")
-    conn.commit()
-
-
-# ===========================================
-#  Person helpers (dependency resolution)
-# ===========================================
-
-def person_exists(conn, pid: int) -> bool:
-    """Return True if person(pid) exists."""
-    with conn.cursor() as cur:
-        cur.execute("SELECT 1 FROM person WHERE pid=%s", (pid,))
-        return cur.fetchone() is not None
-
-
-def insert_person(
-    conn,
-    pid: int,
-    firstname: str,
-    lastname: str,
-    dateofb: str,  # 'YYYY-MM-DD'
-    email: Optional[str] = None,
-    address: Optional[str] = None,
-    phone: Optional[str] = None,
-) -> None:
-    """
-    Create a person row with all mandatory fields.
-    """
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO person(pid, dateofb, firstname, lastname, email, address, phone)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (pid, dateofb, firstname, lastname, email, address, phone),
-        )
     conn.commit()

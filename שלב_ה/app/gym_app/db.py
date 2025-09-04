@@ -1,42 +1,57 @@
-
 # -*- coding: utf-8 -*-
 """
-db.py - ניהול חיבורים (Connection Pool) + קונטקסט מנג'ר
+DB connection utilities for the Gym Management App.
+
+- `connect()` is a context manager that opens a psycopg2 connection,
+  yields it, rolls back on error, and always closes cleanly.
+
+Environment variables (optional):
+  DB_HOST (default: "localhost")
+  DB_PORT (default: "5432")
+  DB_NAME (default: "gym_db")
+  DB_USER (default: "yehuda")
+  DB_PASSWORD (default: "ninga")
 """
+
+from __future__ import annotations
+
+import os
 from contextlib import contextmanager
-from psycopg2 import pool
-from .config import DBConfig
 import psycopg2
-import logging
 
-logger = logging.getLogger(__name__)
 
-class Database:
-    def __init__(self, cfg: DBConfig):
-        self.cfg = cfg
-        self._pool = pool.SimpleConnectionPool(
-            minconn=cfg.minconn,
-            maxconn=cfg.maxconn,
-            host=cfg.host,
-            port=cfg.port,
-            database=cfg.dbname,
-            user=cfg.user,
-            password=cfg.password,
-        )
-        logger.info("Connection pool created: %s", self._pool)
+def _get_conn_params() -> dict:
+    return {
+        "host": os.environ.get("DB_HOST", "localhost"),
+        "port": int(os.environ.get("DB_PORT", "5432")),
+        "dbname": os.environ.get("DB_NAME", "gym_db"),
+        "user": os.environ.get("DB_USER", "yehuda"),
+        "password": os.environ.get("DB_PASSWORD", "ninga"),
+    }
 
-    @contextmanager
-    def connect(self):
-        conn = self._pool.getconn()
+
+@contextmanager
+def connect():
+    """
+    Usage:
+        with connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+    """
+    params = _get_conn_params()
+    conn = None
+    try:
+        conn = psycopg2.connect(**params)
+        yield conn
+    except Exception:
         try:
-            yield conn
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            logger.exception("DB error, rollback: %s", e)
-            raise
+            if conn is not None:
+                conn.rollback()
         finally:
-            self._pool.putconn(conn)
-
-    def close_all(self):
-        self._pool.closeall()
+            raise
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
