@@ -3,7 +3,7 @@
 ChangePasswordPage:
 - All users: change own password (current -> new)
 - Admin only: reset hourly worker password to default (PID)
-  * Validates that target PID is hourly and NOT admin
+  * Admin section is completely hidden for non-admin users.
 """
 
 import tkinter as tk
@@ -58,13 +58,19 @@ class ChangePasswordPage(ttk.Frame):
 
     def on_show(self):
         role = (self.controller.current_user or {}).get("role")
-        # Show/hide admin section
-        state = "normal" if role == "admin" else "disabled"
-        for child in self.admin_grp.winfo_children():
-            try:
-                child.configure(state=state)
-            except Exception:
-                pass
+        # Show admin tools only for admin; hide entirely for others
+        if role == "admin":
+            if not self.admin_grp.winfo_ismapped():
+                self.admin_grp.pack(fill="x", pady=12)
+            # ensure children are enabled
+            for child in self.admin_grp.winfo_children():
+                try:
+                    child.configure(state="normal")
+                except Exception:
+                    pass
+        else:
+            if self.admin_grp.winfo_ismapped():
+                self.admin_grp.pack_forget()
 
     # ----- Actions -----
 
