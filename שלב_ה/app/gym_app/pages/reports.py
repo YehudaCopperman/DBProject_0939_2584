@@ -17,7 +17,7 @@ class ReportsPage(BasePage):
 
         row2 = ttk.Frame(self.card, padding=8, style="Card.TFrame"); row2.pack(fill="x")
         ttk.Button(row2, text="השירות היקר ביותר", style="Ghost.TButton", command=self._run_expensive).pack(side="left")
-        ttk.Button(row2, text="עדכן חברות שפג תוקפן (פרוצדורה)", style="Ghost.TButton", command=self._run_proc).pack(side="left", padx=6)
+        ttk.Button(row2, text="עדכן חברות שפג תוקפן", style="Ghost.TButton", command=self._run_proc).pack(side="left", padx=6)
 
         self.table_frame = ttk.Frame(self.card, padding=(0,8,0,0), style="Card.TFrame")
         self.table_frame.pack(fill="both", expand=True)

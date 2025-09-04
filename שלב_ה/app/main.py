@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Tkinter entry-point and application shell.
-- Creates the window and page frames
-- Orchestrates background DB tasks with safe error binding
-- Adds a global menu bar with Back/Dashboard/Logout
+- Adds a persistent top toolbar with Back / Dashboard / Logout
+- Manages navigation stack for Back
+- Runs DB tasks on a background thread with safe error binding
 """
 
 import threading
@@ -15,6 +15,7 @@ from gym_app.config import APP_TITLE
 from gym_app.pages.login import LoginPage
 from gym_app.pages.dashboard import DashboardPage
 from gym_app.pages.persons import PersonsPage
+from gym_app.pages.members import MembersPage       # make sure this file exists
 from gym_app.pages.data_manager import DataManagerPage
 from gym_app.pages.shifts import ShiftsPage
 from gym_app.pages.reports import ReportsPage
@@ -36,28 +37,59 @@ class App(tk.Tk):
         self._nav_stack: list[str] = []
         self._current_frame_name: str | None = None
 
-        # Root container frame for pages
+        # ---------- Top toolbar (visible Back/Dashboard/Logout) ----------
+        self.toolbar = ttk.Frame(self, padding=(10, 8))
+        self.toolbar.pack(side="top", fill="x")
+
+        # Left side: navigation buttons
+        left = ttk.Frame(self.toolbar)
+        left.pack(side="left", anchor="w")
+
+        self.btn_back = ttk.Button(left, text="← Back", command=self.go_back)
+        self.btn_back.pack(side="left", padx=(0, 8))
+
+        self.btn_home = ttk.Button(left, text="🏠 Dashboard", command=lambda: self.show_frame("DashboardPage"))
+        self.btn_home.pack(side="left", padx=(0, 8))
+
+        # Right side: user info + logout
+        right = ttk.Frame(self.toolbar)
+        right.pack(side="right", anchor="e")
+
+        self.user_label_var = tk.StringVar(value="")
+        self.user_label = ttk.Label(right, textvariable=self.user_label_var)
+        self.user_label.pack(side="left", padx=(0, 10))
+
+        self.btn_logout = ttk.Button(right, text="Logout", command=self.logout)
+        self.btn_logout.pack(side="left")
+
+        # Divider
+        sep = ttk.Separator(self, orient="horizontal")
+        sep.pack(side="top", fill="x")
+
+        # ---------- Page container ----------
         container = ttk.Frame(self)
         container.pack(fill="both", expand=True)
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
 
-        # Pages registry
+        # Pages registry (include MembersPage!)
         self.frames = {}
-        for Page in (LoginPage, DashboardPage, PersonsPage, DataManagerPage, ShiftsPage, ReportsPage):
+        for Page in (
+            LoginPage, DashboardPage, PersonsPage, MembersPage,
+            DataManagerPage, ShiftsPage, ReportsPage
+        ):
             name = Page.__name__
             frame = Page(parent=container, controller=self)
             self.frames[name] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        # Build global menu bar
-        self._build_menubar()
-
-        # Go to login
+        # Go to login on start
         self.show_frame("LoginPage")
-
-        # Basic ttk theme tweaks
         self._init_theme()
+        self._update_toolbar_state()
+
+        # Keyboard shortcut for Back
+        self.bind_all("<Alt-Left>", lambda e: self.go_back())
 
     # --------------- UI helpers ---------------
 
@@ -73,26 +105,25 @@ class App(tk.Tk):
         style.configure("Danger.TButton", padding=6, foreground="#b00020")
         style.configure("Nav.TButton", padding=8)
 
-    def _build_menubar(self):
-        menubar = tk.Menu(self)
+    def _update_toolbar_state(self):
+        """Update Back button enabled/disabled and user label."""
+        can_go_back = bool(self._nav_stack)
+        state = "normal" if can_go_back else "disabled"
+        try:
+            self.btn_back.config(state=state)
+        except Exception:
+            pass
 
-        # Navigate menu
-        nav_menu = tk.Menu(menubar, tearoff=0)
-        nav_menu.add_command(label="Back", command=self.go_back, accelerator="Alt+Left")
-        nav_menu.add_command(label="Dashboard", command=lambda: self.show_frame("DashboardPage"))
-        menubar.add_cascade(label="Navigate", menu=nav_menu)
-
-        # Account menu
-        acc_menu = tk.Menu(menubar, tearoff=0)
-        acc_menu.add_command(label="Logout", command=self.logout)
-        menubar.add_cascade(label="Account", menu=acc_menu)
-
-        self.config(menu=menubar)
-        # Keyboard shortcut for Back
-        self.bind_all("<Alt-Left>", lambda e: self.go_back())
+        user = self.current_user or {}
+        uname = user.get("username")
+        role = user.get("role")
+        if uname and role:
+            self.user_label_var.set(f"Signed in as: {uname} ({role})")
+        else:
+            self.user_label_var.set("Not signed in")
 
     def logout(self):
-        # Clear session and go to login
+        """Clear session and go to login."""
         self.current_user = {"user_id": None, "username": None, "personid": None, "role": None}
         self._nav_stack.clear()
         self._current_frame_name = None
@@ -112,20 +143,27 @@ class App(tk.Tk):
         frame.tkraise()
         self._current_frame_name = name
 
+        # If login just occurred, update the toolbar user label
+        self._update_toolbar_state()
+
         if hasattr(frame, "on_show") and callable(frame.on_show):
             frame.on_show()
 
     def go_back(self):
-        """Navigate to the previous frame if available."""
+        """Navigate to the previous frame if available, else go home."""
         while self._nav_stack:
             prev = self._nav_stack.pop()
-            # Avoid loops if last equals current
             if prev != self._current_frame_name:
-                self.show_frame(prev)
+                self.frames[prev].tkraise()
+                self._current_frame_name = prev
+                self._update_toolbar_state()
+                if hasattr(self.frames[prev], "on_show") and callable(self.frames[prev].on_show):
+                    self.frames[prev].on_show()
                 return
-        # If no history, go home
+        # Fallback: Dashboard
         if self._current_frame_name != "DashboardPage":
             self.show_frame("DashboardPage")
+        self._update_toolbar_state()
 
     # --------------- DB background runner ---------------
 
@@ -139,12 +177,9 @@ class App(tk.Tk):
             try:
                 with connect() as conn:
                     result = task(conn, *args) if args else task(conn)
-
                 if on_success:
-                    # bind 'result' as default argument to keep its value
                     self.after(0, lambda res=result: on_success(res))
             except Exception as e:
-                # bind 'e' so the lambda captures the exception value safely
                 if on_error:
                     self.after(0, lambda exc=e: on_error(exc))
                 else:
