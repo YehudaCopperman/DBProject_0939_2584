@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+DataManagerPage (admin only):
+- Table picker
+- NEW: Column-based search (e.g., search PID in 'person')
+- Paging
+- Add / Edit / Delete rows (generic, whitelisted tables)
+"""
 import tkinter as tk
 from tkinter import ttk, messagebox, Toplevel
 from ..ui.base import BasePage
@@ -21,7 +29,25 @@ class DataManagerPage(BasePage):
         self.cmb_table.pack(side="left")
         self.cmb_table.bind("<<ComboboxSelected>>", lambda _: self._load(reset_page=True))
 
-        ttk.Button(top, text="Refresh", style="Ghost.TButton", command=lambda: self._load(reset_page=False)).pack(side="left", padx=6)
+        ttk.Button(top, text="Refresh", style="Ghost.TButton",
+                   command=lambda: self._load(reset_page=False)).pack(side="left", padx=6)
+
+        # Search bar (NEW)
+        srch = ttk.Frame(self.card, padding=(0, 6, 0, 0), style="Card.TFrame")
+        srch.pack(fill="x")
+
+        ttk.Label(srch, text="Search column").pack(side="left", padx=(0, 6))
+        self.cmb_col = ttk.Combobox(srch, values=[], state="disabled", width=22)
+        self.cmb_col.pack(side="left")
+
+        ttk.Label(srch, text="Value").pack(side="left", padx=(12, 6))
+        self.ent_value = ttk.Entry(srch, width=24)
+        self.ent_value.pack(side="left")
+
+        ttk.Button(srch, text="Apply", style="Ghost.TButton",
+                   command=self._apply_search).pack(side="left", padx=6)
+        ttk.Button(srch, text="Clear", style="Ghost.TButton",
+                   command=self._clear_search).pack(side="left")
 
         # Action buttons
         actions = ttk.Frame(self.card, padding=(0, 6, 0, 0), style="Card.TFrame")
@@ -50,6 +76,8 @@ class DataManagerPage(BasePage):
         self._columns = []   # list[str]
         self._pk_cols = []   # list[str]
         self._current_rows = []
+        self._search_column = None
+        self._search_value = None
 
     def on_show(self):
         # Admin-only guard
@@ -59,10 +87,25 @@ class DataManagerPage(BasePage):
             self.controller.show_frame("LoginPage")
             return
 
-        # Set default selection once
         if not self.cmb_table.get():
             self.cmb_table.set(dao.list_allowed_tables()[0])
         self._load(reset_page=True)
+
+    # ---------- search handlers ----------
+    def _apply_search(self):
+        self._search_column = self.cmb_col.get() or None
+        val = (self.ent_value.get() or "").strip()
+        self._search_value = val or None
+        self.page = 1
+        self._load(reset_page=False)
+
+    def _clear_search(self):
+        self._search_column = None
+        self._search_value = None
+        self.cmb_col.set("")
+        self.ent_value.delete(0, tk.END)
+        self.page = 1
+        self._load(reset_page=False)
 
     # ---------- pagination ----------
     def _goto_page(self, p: int):
@@ -80,17 +123,31 @@ class DataManagerPage(BasePage):
 
         def task(conn):
             # columns + pk
-            cols, pk = dao.get_table_columns(conn, table)
-            rows, total, col_names = dao.fetch_table_rows(
-                conn, table, limit=PAGE_SIZE, offset=(self.page - 1) * PAGE_SIZE
+            cols_meta, pk = dao.get_table_columns(conn, table)
+            rows, total, col_names, _meta, _pk = dao.fetch_table_rows_advanced(
+                conn,
+                table,
+                limit=PAGE_SIZE,
+                offset=(self.page - 1) * PAGE_SIZE,
+                search_column=self._search_column,
+                search_value=self._search_value,
+                sort_by=None,
+                sort_dir="ASC",
             )
-            return {"cols": cols, "pk": pk, "rows": rows, "total": total, "names": col_names}
+            return {"cols": cols_meta, "pk": pk, "rows": rows, "total": total, "names": col_names}
 
         def ok(res):
             self._columns = [c["name"] for c in res["cols"]]
             self._pk_cols = res["pk"]
             self._current_rows = res["rows"]
             self.total = res["total"]
+
+            # rebuild search column list
+            self.cmb_col.config(values=self._columns, state="readonly" if self._columns else "disabled")
+            if self._search_column in self._columns:
+                self.cmb_col.set(self._search_column)
+            else:
+                self.cmb_col.set("")
 
             # rebuild tree columns
             self.tree["columns"] = self._columns
@@ -123,7 +180,6 @@ class DataManagerPage(BasePage):
         it = self.tree.focus()
         if not it:
             return messagebox.showerror("Error", "Select a row")
-
         values = self.tree.item(it, "values")
         row = dict(zip(self._columns, values))
         self._open_row_dialog(table, mode="edit", row=row)
@@ -148,15 +204,16 @@ class DataManagerPage(BasePage):
         def task(conn):
             return dao.delete_row(conn, table, pk_values)
 
-        self.controller.run_db_task(task,
-            on_success=lambda _:(messagebox.showinfo("Success","Deleted"), self._load(reset_page=False)),
-            on_error=lambda e: messagebox.showerror("DB Error", str(e))
+        self.controller.run_db_task(
+            task,
+            on_success=lambda _:(messagebox.showinfo("Success", "Deleted"), self._load(reset_page=False)),
+            on_error=lambda e: messagebox.showerror("DB Error", str(e)),
         )
 
     # ---------- dialog ----------
     def _open_row_dialog(self, table: str, mode: str, row: dict | None = None):
         """
-        Build a simple dynamic form for all columns.
+        Build a dynamic form for all columns.
         - In 'edit' mode, PK fields are disabled (identify row).
         - Strings are passed as-is; PostgreSQL will cast when possible (dates, ints, bools).
         """
@@ -179,7 +236,6 @@ class DataManagerPage(BasePage):
                 e.insert(0, str(row.get(col, "")))
 
             if mode == "edit" and col in self._pk_cols:
-                # lock PK fields in edit mode
                 e.configure(state="disabled")
 
         frm.grid_columnconfigure(1, weight=1)
@@ -201,7 +257,7 @@ class DataManagerPage(BasePage):
                     return dao.insert_row(conn, table, payload)
                 self.controller.run_db_task(
                     task,
-                    on_success=lambda _:(messagebox.showinfo("Success","Created"), dlg.destroy(), self._load(reset_page=False)),
+                    on_success=lambda _:(messagebox.showinfo("Success", "Created"), dlg.destroy(), self._load(reset_page=False)),
                     on_error=lambda e: messagebox.showerror("DB Error", str(e), parent=dlg),
                 )
             else:
@@ -212,7 +268,7 @@ class DataManagerPage(BasePage):
                     return dao.update_row(conn, table, payload, pk_values)
                 self.controller.run_db_task(
                     task,
-                    on_success=lambda _:(messagebox.showinfo("Success","Updated"), dlg.destroy(), self._load(reset_page=False)),
+                    on_success=lambda _:(messagebox.showinfo("Success", "Updated"), dlg.destroy(), self._load(reset_page=False)),
                     on_error=lambda e: messagebox.showerror("DB Error", str(e), parent=dlg),
                 )
 
