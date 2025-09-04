@@ -9,7 +9,10 @@ from ..config import PAGE_SIZE
 FMT_TS = "%Y-%m-%d %H:%M:%S"
 
 class ShiftsPage(BasePage):
-    """Shifts CRUD page. For hourly users: PID is locked and a Change Password action is available."""
+    """Shifts page: 
+    - hourly users: view their own shifts, can CREATE only (no update/delete) + change own password
+    - admin: full CRUD and filters
+    """
 
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Shifts")
@@ -22,7 +25,6 @@ class ShiftsPage(BasePage):
             self.actions_bar, text="Change Password", style="Ghost.TButton",
             command=self._open_change_password_dialog
         )
-        # We'll pack/forget this button in on_show() according to role.
 
         # --- edit form ---
         form = ttk.LabelFrame(self.card, text="Shift Editor", padding=12)
@@ -44,16 +46,20 @@ class ShiftsPage(BasePage):
 
         btns = ttk.Frame(form)
         btns.grid(row=len(fields), column=0, columnspan=2, sticky="e", pady=8)
-        ttk.Button(btns, text="Create", style="Primary.TButton", command=self._create).pack(side="left", padx=4)
-        ttk.Button(btns, text="Update", style="Ghost.TButton", command=self._update).pack(side="left", padx=4)
-        ttk.Button(btns, text="Delete", style="Danger.TButton", command=self._delete).pack(side="left", padx=4)
-        ttk.Button(btns, text="Clear", style="Ghost.TButton", command=self._clear).pack(side="left", padx=4)
+        # keep references so we can show/hide by role
+        self.btn_create = ttk.Button(btns, text="Create", style="Primary.TButton", command=self._create)
+        self.btn_update = ttk.Button(btns, text="Update", style="Ghost.TButton", command=self._update)
+        self.btn_delete = ttk.Button(btns, text="Delete", style="Danger.TButton", command=self._delete)
+        self.btn_clear  = ttk.Button(btns, text="Clear",  style="Ghost.TButton", command=self._clear)
+
+        self.btn_create.pack(side="left", padx=4)
+        self.btn_update.pack(side="left", padx=4)
+        self.btn_delete.pack(side="left", padx=4)
+        self.btn_clear.pack(side="left", padx=4)
 
         # --- filter bar ---
         filt = ttk.Frame(self.card, padding=(0, 6, 0, 0), style="Card.TFrame")
         filt.pack(fill="x")
-
-        # We'll show PID filter only to admin
         self.lbl_filter_pid = ttk.Label(filt, text="Filter by PID")
         self.lbl_filter_pid.pack(side="left", padx=(0, 6))
         self.filter_pid = ttk.Entry(filt, width=10)
@@ -98,27 +104,38 @@ class ShiftsPage(BasePage):
         role = (self.controller.current_user or {}).get("role")
         pid = (self.controller.current_user or {}).get("personid")
 
-        # Hourly: lock PID and show Change Password button; hide PID filter
+        # Hourly: lock PID in form, show change password button, hide admin filters & update/delete
         if role == "hourly":
-            # lock PID in the form
+            # lock PID field
             self.inputs["pid"].configure(state="normal")
             self.inputs["pid"].delete(0, tk.END)
             if pid:
                 self.inputs["pid"].insert(0, str(pid))
             self.inputs["pid"].configure(state="disabled")
 
-            # show Change Password button
+            # show change password button
             if not self.btn_change_pwd.winfo_ismapped():
                 self.btn_change_pwd.pack(side="right")
 
-            # hide PID filter
+            # hide PID filter widgets
             if self.filter_pid.winfo_ismapped():
                 self.filter_pid.pack_forget()
             if self.lbl_filter_pid.winfo_ismapped():
                 self.lbl_filter_pid.pack_forget()
 
+            # hide Update/Delete for hourly
+            if self.btn_update.winfo_ismapped():
+                self.btn_update.pack_forget()
+            if self.btn_delete.winfo_ismapped():
+                self.btn_delete.pack_forget()
+            # show Create/Clear (ensure they are visible)
+            if not self.btn_create.winfo_ismapped():
+                self.btn_create.pack(side="left", padx=4)
+            if not self.btn_clear.winfo_ismapped():
+                self.btn_clear.pack(side="left", padx=4)
+
         else:
-            # Admin: allow PID editing, show PID filter, hide Change Password
+            # Admin: allow PID editing, show all filters and all buttons, hide change-pwd quick action
             if self.btn_change_pwd.winfo_ismapped():
                 self.btn_change_pwd.pack_forget()
 
@@ -129,11 +146,20 @@ class ShiftsPage(BasePage):
 
             self.inputs["pid"].configure(state="normal")
 
+            # ensure all CRUD buttons are visible
+            if not self.btn_update.winfo_ismapped():
+                self.btn_update.pack(side="left", padx=4)
+            if not self.btn_delete.winfo_ismapped():
+                self.btn_delete.pack(side="left", padx=4)
+            if not self.btn_create.winfo_ismapped():
+                self.btn_create.pack(side="left", padx=4)
+            if not self.btn_clear.winfo_ismapped():
+                self.btn_clear.pack(side="left", padx=4)
+
         self._load()
 
     # ---------- change password dialog (hourly only) ----------
     def _open_change_password_dialog(self):
-        """Opens a modal dialog for hourly users to change their password."""
         role = (self.controller.current_user or {}).get("role")
         pid = (self.controller.current_user or {}).get("personid")
         if role != "hourly" or pid is None:
@@ -183,12 +209,8 @@ class ShiftsPage(BasePage):
             )
 
         ttk.Button(btns, text="Change", style="Primary.TButton", command=submit).pack(side="left", padx=4)
-
-        # Enter key submissions
         e_old.bind("<Return>", lambda _: e_new.focus_set())
         e_new.bind("<Return>", lambda _: submit())
-
-        # focus first field
         e_old.focus_set()
 
     # ---------- pagination & filters ----------
@@ -291,13 +313,14 @@ class ShiftsPage(BasePage):
         self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("Success","Created"), self._load()), on_error=self._err)
 
     def _update(self):
+        # hard guard: hourly not allowed
+        if (self.controller.current_user or {}).get("role") == "hourly":
+            return messagebox.showerror("Access", "Hourly workers cannot update shifts.")
         if not self._current_selected:
             return messagebox.showerror("Error", "Select a shift to edit")
 
-        role = (self.controller.current_user or {}).get("role")
-        user_pid = (self.controller.current_user or {}).get("personid")
         try:
-            pid = int(user_pid) if role == "hourly" else int(self.inputs["pid"].get())
+            pid = int(self.inputs["pid"].get())
             sdate = date.fromisoformat(self.inputs["date"].get())
             new_cin = datetime.strptime(self.inputs["clock_in"].get(), FMT_TS)
             cout = datetime.strptime(self.inputs["clock_out"].get(), FMT_TS)
@@ -310,19 +333,18 @@ class ShiftsPage(BasePage):
         self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("Success","Updated"), self._load()), on_error=self._err)
 
     def _delete(self):
+        # hard guard: hourly not allowed
+        if (self.controller.current_user or {}).get("role") == "hourly":
+            return messagebox.showerror("Access", "Hourly workers cannot delete shifts.")
         if not self._current_selected:
             return messagebox.showerror("Error", "Select a shift to delete")
 
-        role = (self.controller.current_user or {}).get("role")
-        user_pid = (self.controller.current_user or {}).get("personid")
         pid, sdate, cin = self._current_selected
-        pid = int(user_pid) if role == "hourly" else int(pid)
-
         if not messagebox.askyesno("Confirm", f"Delete shift for PID {pid} on {sdate}?"):
             return
 
         def task(conn):
-            return dao.delete_shift(conn, pid, sdate, cin)
+            return dao.delete_shift(conn, int(pid), sdate, cin)
         self.controller.run_db_task(task, on_success=lambda _:(messagebox.showinfo("Success","Deleted"), self._load()), on_error=self._err)
 
     def _clear(self):
