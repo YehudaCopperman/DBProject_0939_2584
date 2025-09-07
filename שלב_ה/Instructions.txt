@@ -1,0 +1,51 @@
+==========================
+הוראות כניסה והפעלה (עברית)
+==========================
+
+1. הפעלת בסיס הנתונים:
+   - ודא ש-Docker מותקן ופועל במחשב שלך.
+   - בתיקיית הפרויקט הראשית, הרץ את הפקודה:
+     docker compose up -d
+
+2. הפעלת האפליקציה:
+   - עבור לתיקיית app שבתוך שלב_ה.
+   - הרץ את הפקודה:
+     python main.py
+
+3. התחברות:
+   - במסך הכניסה, יש להזין שם משתמש (PID) וסיסמה כפי שהוגדרו מראש במסד הנתונים.
+   - מנהל (admin) יקבל גישה מלאה לכל המסכים והאפשרויות.
+   - עובד שעתי (hourly) יוכל לגשת למסך המשמרות ולשינוי הסיסמה בלבד.
+
+4. ניווט:
+   - השתמש בסרגל העליון לניווט בין המסכים או חזרה למסך הראשי (Dashboard).
+   - בכל מסך ניתן לבצע חיפוש, הוספה, עדכון או מחיקה לפי ההרשאות.
+
+5. יציאה:
+   - לחץ על כפתור Logout כדי לצאת מהמערכת.
+
+=============================
+Instructions for Use (English)
+=============================
+
+1. Start the database:
+   - Make sure Docker is installed and running on your computer.
+   - From the project root directory, run:
+     docker compose up -d
+
+2. Run the application:
+   - Navigate to the "app" folder inside "שלב_ה".
+   - Run the command:
+     python main.py
+
+3. Login:
+   - On the login screen, enter the Username (PID) and Password as configured in the database.
+   - Admin users have full access to all screens and features.
+   - Hourly workers can only access the Shifts page and the Change Password option.
+
+4. Navigation:
+   - Use the top toolbar to navigate between screens or return to the Dashboard.
+   - Each screen allows search, add, update, or delete operations according to permissions.
+
+5. Logout:
+   - Click the "Logout" button to safely exit the system.
