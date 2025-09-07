@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-PersonsPage (read-only):
-- Search by name or PID
-- Paginated results
-- No create/update/delete actions (view-only)
+PersonsPage (English, read-only):
+- Search (by first/last name or PID)
+- Paginated table
+- No create/update/delete here (CRUD is via Data Manager)
 """
+
 import tkinter as tk
 from tkinter import ttk, messagebox
-
 from ..ui.base import BasePage
 from ..ui.widgets import SearchBar, PaginationBar
 from .. import dao
@@ -16,26 +16,34 @@ from ..config import PAGE_SIZE
 
 class PersonsPage(BasePage):
     def __init__(self, parent, controller):
-        super().__init__(parent, controller, "אנשים (קריאה בלבד)")
+        super().__init__(parent, controller, "People")
+
         # Top bar: search + refresh
         top = ttk.Frame(self.card, style="Card.TFrame")
         top.pack(fill="x")
-
-        self.search_bar = SearchBar(top, on_search=self._do_search, placeholder="חפש לפי שם או ת.ז...")
+        self.search_bar = SearchBar(top, on_search=self._do_search, placeholder="Search by name or PID…")
         self.search_bar.pack(side="left")
+        ttk.Button(top, text="Refresh", style="Ghost.TButton", command=lambda: self._load()).pack(side="right")
 
-        ttk.Button(top, text="רענן", style="Ghost.TButton",
-                   command=lambda: self._load()).pack(side="right")
-
-        # Table (read-only)
+        # Table
         table_frame = ttk.Frame(self.card, padding=(0, 8, 0, 0), style="Card.TFrame")
         table_frame.pack(fill="both", expand=True)
 
-        self.columns = ("pid", "firstname", "lastname", "dateofb", "email", "address", "phone")
-        self.tree = ttk.Treeview(table_frame, columns=self.columns, show="headings", selectmode="browse")
-        for c in self.columns:
-            self.tree.heading(c, text=c)
-            self.tree.column(c, width=140, anchor="center")
+        cols = ("pid", "firstname", "lastname", "dateofb", "email", "address", "phone")
+        headings = {
+            "pid": "PID",
+            "firstname": "First Name",
+            "lastname": "Last Name",
+            "dateofb": "Date of Birth",
+            "email": "Email",
+            "address": "Address",
+            "phone": "Phone",
+        }
+
+        self.tree = ttk.Treeview(table_frame, columns=cols, show="headings")
+        for c in cols:
+            self.tree.heading(c, text=headings[c])
+            self.tree.column(c, width=140 if c != "address" else 220, anchor="center")
         self.tree.pack(side="left", fill="both", expand=True)
 
         vsb = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -45,15 +53,17 @@ class PersonsPage(BasePage):
         # Pagination
         self.page = 1
         self.total = 0
-        self.pager = PaginationBar(self.card, on_page_change=self._goto_page,
-                                   page=self.page, total=self.total, page_size=PAGE_SIZE)
+        self.pager = PaginationBar(
+            self.card, on_page_change=self._goto_page,
+            page=self.page, total=self.total, page_size=PAGE_SIZE
+        )
         self.pager.pack(anchor="e", pady=(6, 0))
 
     # Lifecycle
     def on_show(self):
         self._load()
 
-    # Paging + search
+    # Paging / Search
     def _goto_page(self, page: int):
         self.page = page
         self._load()
@@ -62,7 +72,7 @@ class PersonsPage(BasePage):
         self.page = 1
         self._load(txt)
 
-    # Data load
+    # Data
     def _load(self, search: str = ""):
         def task(conn):
             return dao.list_persons(conn, search=search, page=self.page, page_size=PAGE_SIZE)
@@ -77,16 +87,24 @@ class PersonsPage(BasePage):
 
         self.controller.run_db_task(task, on_success=ok, on_error=self._err)
 
-    # Rendering
     def _fill(self, rows):
         for item in self.tree.get_children():
             self.tree.delete(item)
         for r in rows:
-            # dateofb to ISO if not None
-            row = list(r)
-            row[3] = row[3].isoformat() if row[3] else ""
-            self.tree.insert("", "end", values=tuple(row))
+            # r: (pid, firstname, lastname, dateofb, email, address, phone)
+            pid, fn, ln, dob, email, addr, phone = r
+            self.tree.insert(
+                "", "end",
+                values=(
+                    pid,
+                    fn or "",
+                    ln or "",
+                    dob.isoformat() if dob else "",
+                    email or "",
+                    addr or "",
+                    phone if phone is not None else ""
+                )
+            )
 
-    # Errors
-    def _err(self, e: Exception):
-        messagebox.showerror("שגיאה", str(e))
+    def _err(self, e):
+        messagebox.showerror("Error", str(e))

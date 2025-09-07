@@ -216,8 +216,9 @@ def list_members(
     where = ""
     args: List = []
     if search:
+        # FIX: filter on the CTE columns (joined), not on alias p.*
         where = """
-        WHERE (p.firstname ILIKE %s OR p.lastname ILIKE %s OR p.pid::text ILIKE %s)
+        WHERE (firstname ILIKE %s OR lastname ILIKE %s OR pid::text ILIKE %s)
         """
         args = [f"%{search}%", f"%{search}%", f"%{search}%"]
 

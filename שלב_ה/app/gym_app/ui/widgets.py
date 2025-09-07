@@ -1,40 +1,61 @@
-
 # -*- coding: utf-8 -*-
 """
-widgets.py - ווידג'טים חוזרים: סרגל חיפוש, פאג'ינציה
+widgets.py - Reusable UI widgets: SearchBar, PaginationBar (language-agnostic)
 """
 import tkinter as tk
 from tkinter import ttk
 from math import ceil
 
+
 class SearchBar(ttk.Frame):
-    def __init__(self, parent, on_search, placeholder="חיפוש...", **kw):
+    """
+    A compact search bar with an Entry + 'Search' button.
+    - Language-agnostic placeholder support.
+    - Pressing Enter triggers the search.
+    """
+    def __init__(self, parent, on_search, placeholder="Search...", **kw):
         super().__init__(parent, **kw)
         self.on_search = on_search
+        self._placeholder = placeholder
+        self._has_placeholder = False
+
         self.var = tk.StringVar()
         self.entry = ttk.Entry(self, textvariable=self.var, width=30)
-        self.entry.pack(side=tk.LEFT, padx=(0,6))
-        ttk.Button(self, text="חפש", style="Primary.TButton", command=self._do).pack(side=tk.LEFT)
-        self.entry.bind("<Return>", lambda e: self._do())
-        self._set_placeholder(placeholder)
+        self.entry.pack(side=tk.LEFT, padx=(0, 6))
 
-    def _set_placeholder(self, text):
-        self.entry.insert(0, text)
-        self.entry.bind("<FocusIn>", self._clear_placeholder)
-        self.entry.bind("<FocusOut>", lambda e: self._restore_placeholder(text))
+        ttk.Button(self, text="Search", style="Primary.TButton", command=self._do).pack(side=tk.LEFT)
 
-    def _clear_placeholder(self, _):
-        if self.entry.get().startswith("חיפוש"):
+        # Placeholder handling
+        self._set_placeholder()
+        self.entry.bind("<FocusIn>", self._on_focus_in)
+        self.entry.bind("<FocusOut>", self._on_focus_out)
+        self.entry.bind("<Return>", lambda _e: self._do())
+
+    def _set_placeholder(self):
+        self.entry.delete(0, tk.END)
+        self.entry.insert(0, self._placeholder)
+        self._has_placeholder = True
+
+    def _on_focus_in(self, _):
+        if self._has_placeholder:
             self.entry.delete(0, tk.END)
+            self._has_placeholder = False
 
-    def _restore_placeholder(self, text):
-        if not self.entry.get():
-            self.entry.insert(0, text)
+    def _on_focus_out(self, _):
+        if not self.entry.get().strip():
+            self._set_placeholder()
 
     def _do(self):
-        self.on_search(self.var.get())
+        text = "" if self._has_placeholder else self.var.get()
+        self.on_search(text)
+
 
 class PaginationBar(ttk.Frame):
+    """
+    Simple Prev/Next pager:
+    - Shows "Page X of Y"
+    - Calls on_page_change(new_page) when navigation occurs
+    """
     def __init__(self, parent, on_page_change, page=1, total=0, page_size=50, **kw):
         super().__init__(parent, **kw)
         self.on_page_change = on_page_change
@@ -46,12 +67,22 @@ class PaginationBar(ttk.Frame):
     def _build(self):
         for w in self.winfo_children():
             w.destroy()
-        pages = max(1, ceil(self.total / self.page_size)) if self.total else 1
-        ttk.Button(self, text="◀ הקודם", style="Ghost.TButton",
-                   command=lambda: self._go(max(1, self.page-1))).pack(side=tk.LEFT, padx=3)
-        ttk.Label(self, text=f"עמוד {self.page} מתוך {pages}", style="SubTitle.TLabel").pack(side=tk.LEFT, padx=8)
-        ttk.Button(self, text="הבא ▶", style="Ghost.TButton",
-                   command=lambda: self._go(min(pages, self.page+1))).pack(side=tk.LEFT, padx=3)
+
+        total_pages = max(1, ceil(self.total / self.page_size)) if self.total else 1
+
+        ttk.Button(
+            self, text="◀ Prev", style="Ghost.TButton",
+            command=lambda: self._go(max(1, self.page - 1))
+        ).pack(side=tk.LEFT, padx=3)
+
+        ttk.Label(
+            self, text=f"Page {self.page} of {total_pages}", style="SubTitle.TLabel"
+        ).pack(side=tk.LEFT, padx=8)
+
+        ttk.Button(
+            self, text="Next ▶", style="Ghost.TButton",
+            command=lambda: self._go(min(total_pages, self.page + 1))
+        ).pack(side=tk.LEFT, padx=3)
 
     def _go(self, page: int):
         if page != self.page:
