@@ -982,6 +982,105 @@ $$ LANGUAGE plpgsql;
  <img src="שלב_ד//pictures//main_2.png" width="700"/>   
 
 
+## שלב ה – אפליקציית Gym Management GUI
+
+### הוראות הפעלה
+
+1. ודא שסביבת העבודה כוללת Docker ו־Python (גרסה 3.9+).
+2. הרץ את בסיס הנתונים:
+   ```bash
+   docker compose up -d db
+   ```
+3. הרץ את מיגרציות הסכמה:
+   ```bash
+   docker compose run --rm migrations
+   ```
+4. עבור לתיקיית האפליקציה:
+   ```bash
+   cd שלב_ה/app
+   ```
+5. הפעל את הממשק הגרפי:
+   ```bash
+   python main.py
+   ```
+6. חלון האפליקציה ייפתח ויאפשר התחברות, ניהול נתונים, ודוחות.
+
+> **טיפ:** ניתן ליצור סקריפט `run.command` (ב־Mac) או `run.bat` (ב־Windows) להרצה בלחיצה אחת.
+
+---
+
+### הסבר על דרך העבודה והכלים
+
+בפרויקט זה אני והשותף שלי בנינו אפליקציה מלאה לניהול חדר כושר. השתמשנו בכלים הבאים:
+
+- **PostgreSQL + Docker** – לבניית בסיס נתונים יציב ומבודד, עם סכימה הכוללת ישויות כמו person, member, worker, shift.
+- **מיגרציות SQL** – ליצירת פונקציות, טריגרים ונהלי עבודה (למשל cascade delete על טבלת person).
+- **Python (Tkinter)** – לפיתוח ממשק משתמש גרפי, עם חלוקה למסכים (Pages) המופרדים לפי אחריות (PersonsPage, MembersPage וכו’).
+- **DAO layer** – שכבת גישה לנתונים, שמפרידה את שאילתות ה־SQL מהלוגיקה של הממשק.
+- **ניהול סיסמאות והרשאות** – שילוב פונקציות authenticate_user ו־change_password, והגבלת גישה למסכים לפי תפקיד (admin/hourly).
+- **עיצוב (ttk.Style)** – יישור קו עיצובי, צבעים וסגנונות מודרניים (כפתורים, כרטיסיות, טבלאות).
+- **שיטת עבודה זוגית (Pair Programming)** – שימוש ב־GitHub, חלוקת משימות, ביצוע commit קצר ומשמעותי לאחר כל תיקון או תוספת.
+
+---
+
+### תיאור מסכים ופונקציות
+
+#### Login Page – התחברות
+- מאפשר למשתמש להזין PID וסיסמה.
+- תפקיד: מפעיל את הפונקציה `authenticate_user` ובודק הרשאות.
+- כישלון → הודעת שגיאה, הצלחה → מעבר לדשבורד או למסך משמרות.
+- ![login screenshot](שלב_ה/pictures5/login.png)
+
+#### Dashboard – דשבורד
+- מסך ניהול ראשי למנהל.
+- קישורים לניהול אנשים, חברים, משמרות, דוחות ומנהל נתונים.
+- כלי מנהל: איפוס סיסמת עובד שעתי.
+- ![dashboard screenshot](שלב_ה/pictures5/dashboard.png)
+
+#### Persons Page – ניהול אנשים
+- הוספה/עדכון/מחיקה של אנשים (PID, פרטי קשר).
+- תפקיד: קריאה לפונקציות `create_person`, `update_person`, `delete_person`.
+- כולל חיפוש ופאג’ינציה.
+- ![persons screenshot](שלב_ה/pictures5/persons.png)
+
+#### Members Page – ניהול חברים
+- ניהול פרטי חברות של אנשים קיימים.
+- פונקציות: `list_members`, `upsert_member_via_proc`, `update_member`, `delete_member`.
+- תמיכה בסטטוס פעיל/לא פעיל.
+- ![members screenshot](שלב_ה/pictures5/members.png)
+
+#### Shifts Page – משמרות
+- צפייה, הוספה, עדכון ומחיקה של משמרות.
+- מסך דינמי:
+  - למנהל: בחירה לפי PID.
+  - לעובד שעתי: רק המשמרות שלו + שינוי סיסמה עצמי.
+- תפקיד: שימוש בפונקציות `list_shifts`, `create_shift`, `update_shift`, `delete_shift`.
+- ![shifts screenshot](שלב_ה/pictures5/shifts.png)
+
+#### Reports Page – דוחות
+- הפקת דוחות:
+  - סיכום שעות עבודה לפי חודש ושנה (`hours_by_month`).
+  - השירות היקר ביותר (`most_expensive_service`).
+  - קריאה ל־procedure לעדכון חברות שפג תוקפן.
+- ![reports screenshot](שלב_ה/pictures5/reports.png)
+
+#### Data Manager Page – מנהל נתונים
+- כלי גנרי למנהל בלבד.
+- מאפשר לצפות, להוסיף, לעדכן ולמחוק ישויות מכל טבלה מאושרת.
+- מבוסס על שאילתות מידע מ־information_schema.
+- ![data_manager screenshot](שלב_ה/pictures5/datamanager.png)
+
+#### Change Password Page – שינוי סיסמה
+- כל משתמש: שינוי סיסמה אישית (ישן → חדש).
+- מנהל בלבד: איפוס סיסמה לעובד שעתי.
+- פונקציות: `change_password_by_pid`, `admin_reset_password_by_pid`.
+- ![change_password screenshot](שלב_ה/pictures5/changepassword.png)
+
+---
+
+### סיכום
+בשלב זה נבנתה אפליקציה מלאה לניהול חדר כושר עם בסיס נתונים, ממשק משתמש גרפי, הרשאות, דוחות וכלי ניהול גנרי. הפרויקט משלב בין עקרונות תכנון תוכנה, עבודה עם DB אמיתי, ותיעוד מסודר לשימוש עתידי.
+
 
 
 
